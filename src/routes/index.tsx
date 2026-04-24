@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useDictation } from "@/hooks/use-dictation";
-import { playBase64Mp3 } from "@/lib/audio";
+import { playBase64Mp3, prepareAudioPlayback } from "@/lib/audio";
 import { classifyIdea, growIdea, type DevPack } from "@/server/bernice.functions";
 import { speakBernice } from "@/server/voice.functions";
 import { cn } from "@/lib/utils";
@@ -308,6 +308,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
 
   function handlePressStart() {
     if (pending) return;
+    prepareAudioPlayback();
     holdActiveRef.current = true;
     if (dictation.supported) {
       dictation.start();
@@ -476,6 +477,7 @@ function IdeaDetail({
   }
 
   async function handleSpeak() {
+    prepareAudioPlayback();
     setSpeaking(true);
     try {
       const tts = await speakBernice({ data: { text: idea!.transcript.slice(0, 600) } });

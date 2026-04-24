@@ -454,7 +454,7 @@ function IdeaDetail({
       const pack = await growIdea({ data: { transcript: idea!.transcript, topic: idea!.topic } });
       const { error } = await supabase
         .from("ideas")
-        .update({ status: "grow", dev_pack: pack as unknown as Record<string, unknown> })
+        .update({ status: "grow", dev_pack: pack as never })
         .eq("id", idea!.id);
       if (error) throw error;
       toast.success("Bernice cooked up a plan, hun.");

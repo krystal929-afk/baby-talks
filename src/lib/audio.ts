@@ -24,24 +24,32 @@ export function prepareAudioPlayback(): void {
 
 // Plays a base64 mp3 returned from the server.
 export async function playBase64Mp3(base64: string): Promise<void> {
+  const playWithElement = async () => {
+    const audio = new Audio(`data:audio/mpeg;base64,${base64}`);
+    await audio.play();
+    return new Promise<void>((resolve) => {
+      audio.onended = () => resolve();
+      audio.onerror = () => resolve();
+    });
+  };
+
   const ctx = getAudioContext();
   if (ctx) {
-    if (ctx.state === "suspended") await ctx.resume();
-    const binary = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
-    const buffer = await ctx.decodeAudioData(binary.buffer.slice(0));
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(ctx.destination);
-    source.start(0);
-    return new Promise((resolve) => {
-      source.onended = () => resolve();
-    });
+    try {
+      if (ctx.state === "suspended") await ctx.resume();
+      const binary = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+      const buffer = await ctx.decodeAudioData(binary.buffer.slice(0));
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+      return new Promise<void>((resolve) => {
+        source.onended = () => resolve();
+      });
+    } catch {
+      return playWithElement();
+    }
   }
 
-  const audio = new Audio(`data:audio/mpeg;base64,${base64}`);
-  await audio.play();
-  return new Promise((resolve) => {
-    audio.onended = () => resolve();
-    audio.onerror = () => resolve();
-  });
+  return playWithElement();
 }

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useDictation } from "@/hooks/use-dictation";
 import { prepareAudioPlayback } from "@/lib/audio";
-import { speak } from "@/lib/speak";
+import { createSpeechHandle, speak, type SpeechHandle } from "@/lib/speak";
 import { classifyIdea, growIdea, type DevPack } from "@/server/bernice.functions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -267,6 +267,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
   const [pending, setPending] = useState(false);
   const [showText, setShowText] = useState(false);
   const holdActiveRef = useRef(false);
+  const speechHandleRef = useRef<SpeechHandle | null>(null);
 
   const liveText = (text || dictation.interim).trim();
 
@@ -290,9 +291,11 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
 
       // Speak the reply (best-effort)
       try {
-        await speak(cls.bernice_reply);
+        await speak(cls.bernice_reply, speechHandleRef.current ?? undefined);
       } catch (e) {
         console.warn("TTS skipped:", e);
+      } finally {
+        speechHandleRef.current = null;
       }
 
       setText("");
@@ -307,7 +310,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
 
   function handlePressStart() {
     if (pending) return;
-    prepareAudioPlayback();
+    speechHandleRef.current = createSpeechHandle();
     holdActiveRef.current = true;
     if (dictation.supported) {
       dictation.start();
@@ -348,6 +351,9 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
               type="button"
               size="icon"
               disabled={!text.trim() || pending}
+              onPointerDown={() => {
+                speechHandleRef.current = createSpeechHandle();
+              }}
               onClick={() => saveIdea(text)}
               className="h-auto"
             >
@@ -476,10 +482,10 @@ function IdeaDetail({
   }
 
   async function handleSpeak() {
-    prepareAudioPlayback();
+    const speechHandle = createSpeechHandle();
     setSpeaking(true);
     try {
-      const result = await speak(idea!.transcript.slice(0, 600));
+      const result = await speak(idea!.transcript.slice(0, 600), speechHandle);
       if (result.provider === "none") toast("No voice available on this device.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't speak that.");

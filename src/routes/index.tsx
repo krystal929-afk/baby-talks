@@ -6,9 +6,9 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useDictation } from "@/hooks/use-dictation";
-import { playBase64Mp3, prepareAudioPlayback } from "@/lib/audio";
+import { prepareAudioPlayback } from "@/lib/audio";
+import { speak } from "@/lib/speak";
 import { classifyIdea, growIdea, type DevPack } from "@/server/bernice.functions";
-import { speakBernice } from "@/server/voice.functions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";

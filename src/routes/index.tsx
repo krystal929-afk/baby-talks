@@ -267,6 +267,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
   const [pending, setPending] = useState(false);
   const [showText, setShowText] = useState(false);
   const holdActiveRef = useRef(false);
+  const speechHandleRef = useRef<SpeechHandle | null>(null);
 
   const liveText = (text || dictation.interim).trim();
 

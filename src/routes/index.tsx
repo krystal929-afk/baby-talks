@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Mic, Square, Loader2, Volume2, Trash2, Sparkles, X, Plus, Send } from "lucide-react";
+import { Mic, Square, Loader2, Volume2, Trash2, Sparkles, X, Plus, Send, Headphones } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useDictation } from "@/hooks/use-dictation";
-import { prepareAudioPlayback } from "@/lib/audio";
+
 import { createSpeechHandle, speak, type SpeechHandle } from "@/lib/speak";
 import { classifyIdea, growIdea, type DevPack } from "@/server/bernice.functions";
 import { cn } from "@/lib/utils";
@@ -310,7 +310,6 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
 
   function handlePressStart() {
     if (pending) return;
-    speechHandleRef.current = createSpeechHandle();
     holdActiveRef.current = true;
     if (dictation.supported) {
       dictation.start();
@@ -321,11 +320,18 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
   function handlePressEnd() {
     if (!holdActiveRef.current) return;
     holdActiveRef.current = false;
+    speechHandleRef.current = createSpeechHandle();
     if (dictation.listening) {
       const result = dictation.stop();
       if (result) saveIdea(result);
       else toast("I didn't catch that, hun. Try again.");
     }
+  }
+
+  async function handleVoiceTest() {
+    const speechHandle = createSpeechHandle();
+    const result = await speak("Ope, I can talk now, hun.", speechHandle);
+    if (result.error) toast("Voice test did not start. Check iPhone silent mode, volume, and Spoken Content voices.");
   }
 
   return (
@@ -397,7 +403,17 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
             )}
           </button>
 
-          <div className="w-10" />
+          <button
+            type="button"
+            onPointerDown={() => {
+              speechHandleRef.current = createSpeechHandle();
+            }}
+            onClick={handleVoiceTest}
+            className="rounded-full border border-border/60 p-3 text-muted-foreground transition hover:text-foreground"
+            aria-label="Test voice"
+          >
+            <Headphones className="h-4 w-4" />
+          </button>
         </div>
 
         <p className="mt-2 text-center text-[11px] text-muted-foreground">
@@ -487,6 +503,7 @@ function IdeaDetail({
     try {
       const result = await speak(idea!.transcript.slice(0, 600), speechHandle);
       if (result.provider === "none") toast("No voice available on this device.");
+      else if (result.error) toast("Voice did not start. Check silent mode, volume, and Spoken Content voices.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't speak that.");
     } finally {

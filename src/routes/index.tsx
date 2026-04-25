@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useDictation } from "@/hooks/use-dictation";
-import { prepareAudioPlayback } from "@/lib/audio";
+
 import { createSpeechHandle, speak, type SpeechHandle } from "@/lib/speak";
 import { classifyIdea, growIdea, type DevPack } from "@/server/bernice.functions";
 import { cn } from "@/lib/utils";

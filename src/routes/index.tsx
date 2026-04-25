@@ -6,9 +6,9 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useDictation } from "@/hooks/use-dictation";
-import { playBase64Mp3, prepareAudioPlayback } from "@/lib/audio";
+import { prepareAudioPlayback } from "@/lib/audio";
+import { speak } from "@/lib/speak";
 import { classifyIdea, growIdea, type DevPack } from "@/server/bernice.functions";
-import { speakBernice } from "@/server/voice.functions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -290,8 +290,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
 
       // Speak the reply (best-effort)
       try {
-        const tts = await speakBernice({ data: { text: cls.bernice_reply } });
-        if (tts.audio) await playBase64Mp3(tts.audio);
+        await speak(cls.bernice_reply);
       } catch (e) {
         console.warn("TTS skipped:", e);
       }
@@ -480,9 +479,9 @@ function IdeaDetail({
     prepareAudioPlayback();
     setSpeaking(true);
     try {
-      const tts = await speakBernice({ data: { text: idea!.transcript.slice(0, 600) } });
-      if (tts.audio) await playBase64Mp3(tts.audio);
-      else toast(tts.error || "Voice unavailable. Add an ElevenLabs key to enable.");
+      const result = await speak(idea!.transcript.slice(0, 600));
+      if (result.provider === "none") toast("No voice available on this device.");
+      else if (result.provider === "browser") toast("Using device voice (ElevenLabs unavailable).");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't speak that.");
     } finally {

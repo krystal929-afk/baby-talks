@@ -482,10 +482,10 @@ function IdeaDetail({
   }
 
   async function handleSpeak() {
-    prepareAudioPlayback();
+    const speechHandle = createSpeechHandle();
     setSpeaking(true);
     try {
-      const result = await speak(idea!.transcript.slice(0, 600));
+      const result = await speak(idea!.transcript.slice(0, 600), speechHandle);
       if (result.provider === "none") toast("No voice available on this device.");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't speak that.");

@@ -351,6 +351,9 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
               type="button"
               size="icon"
               disabled={!text.trim() || pending}
+              onPointerDown={() => {
+                speechHandleRef.current = createSpeechHandle();
+              }}
               onClick={() => saveIdea(text)}
               className="h-auto"
             >

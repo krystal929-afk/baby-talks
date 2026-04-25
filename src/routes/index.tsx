@@ -310,7 +310,6 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
 
   function handlePressStart() {
     if (pending) return;
-    speechHandleRef.current = createSpeechHandle();
     holdActiveRef.current = true;
     if (dictation.supported) {
       dictation.start();
@@ -321,11 +320,18 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
   function handlePressEnd() {
     if (!holdActiveRef.current) return;
     holdActiveRef.current = false;
+    speechHandleRef.current = createSpeechHandle();
     if (dictation.listening) {
       const result = dictation.stop();
       if (result) saveIdea(result);
       else toast("I didn't catch that, hun. Try again.");
     }
+  }
+
+  async function handleVoiceTest() {
+    const speechHandle = createSpeechHandle();
+    const result = await speak("Ope, I can talk now, hun.", speechHandle);
+    if (result.error) toast("Voice test did not start. Check iPhone silent mode, volume, and Spoken Content voices.");
   }
 
   return (

@@ -481,7 +481,6 @@ function IdeaDetail({
     try {
       const result = await speak(idea!.transcript.slice(0, 600));
       if (result.provider === "none") toast("No voice available on this device.");
-      else if (result.provider === "browser") toast("Using device voice (ElevenLabs unavailable).");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't speak that.");
     } finally {

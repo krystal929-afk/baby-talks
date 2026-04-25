@@ -290,8 +290,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
 
       // Speak the reply (best-effort)
       try {
-        const tts = await speakBernice({ data: { text: cls.bernice_reply } });
-        if (tts.audio) await playBase64Mp3(tts.audio);
+        await speak(cls.bernice_reply);
       } catch (e) {
         console.warn("TTS skipped:", e);
       }

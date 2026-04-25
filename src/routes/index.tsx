@@ -310,7 +310,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
 
   function handlePressStart() {
     if (pending) return;
-    prepareAudioPlayback();
+    speechHandleRef.current = createSpeechHandle();
     holdActiveRef.current = true;
     if (dictation.supported) {
       dictation.start();

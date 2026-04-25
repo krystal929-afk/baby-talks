@@ -291,9 +291,11 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
 
       // Speak the reply (best-effort)
       try {
-        await speak(cls.bernice_reply);
+        await speak(cls.bernice_reply, speechHandleRef.current ?? undefined);
       } catch (e) {
         console.warn("TTS skipped:", e);
+      } finally {
+        speechHandleRef.current = null;
       }
 
       setText("");

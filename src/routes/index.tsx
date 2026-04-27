@@ -286,12 +286,13 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
       });
       if (error) throw error;
 
+      const reply = "You betcha, savin' it now.";
       onSaved();
-      toast.success(cls.bernice_reply);
+      toast.success(reply);
 
       // Speak the reply (best-effort)
       try {
-        await speak(cls.bernice_reply, speechHandleRef.current ?? undefined);
+        await speak(reply, speechHandleRef.current ?? undefined);
       } catch (e) {
         console.warn("TTS skipped:", e);
       } finally {

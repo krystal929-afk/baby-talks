@@ -333,10 +333,14 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
     }
   }
 
-  async function handleVoiceTest() {
+  function handleVoiceTest() {
     const speechHandle = createSpeechHandle();
-    const result = await speak("I'm Baby — hi daddy, I can talk now.", speechHandle);
-    if (result.error) toast("Voice test did not start. Check iPhone silent mode, volume, and Spoken Content voices.");
+    // Fire speak synchronously inside the gesture; iOS Safari requires this.
+    void speak("I'm Baby — hi daddy, I can talk now.", speechHandle).then((result) => {
+      if (result.error) {
+        toast("Voice test did not start. Check iPhone silent mode, volume, and Spoken Content voices.");
+      }
+    });
   }
 
   return (

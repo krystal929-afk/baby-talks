@@ -279,6 +279,7 @@ function EmptyState() {
 
 function CaptureBar({ onSaved }: { onSaved: () => void }) {
   const dictation = useDictation();
+  const [voiceEnabled] = useVoiceEnabled();
   const [text, setText] = useState("");
   const [pending, setPending] = useState(false);
   const [showText, setShowText] = useState(false);

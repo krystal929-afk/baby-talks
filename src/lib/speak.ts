@@ -81,9 +81,23 @@ function browserSpeak(text: string, handle?: SpeechHandle): Promise<boolean> {
   });
 }
 
-/** Speak using the browser's built-in voice (free, no API key needed). */
-export async function speak(text: string, handle?: SpeechHandle): Promise<{ provider: "browser" | "none"; error?: string }> {
+/** Speak using ElevenLabs (cloned Baby voice), falling back to the browser. */
+export async function speak(text: string, handle?: SpeechHandle): Promise<{ provider: "elevenlabs" | "browser" | "none"; error?: string }> {
   prepareAudioPlayback();
+
+  // Try ElevenLabs first (cloned Baby voice)
+  try {
+    const { speakBernice } = await import("@/server/voice.functions");
+    const { playBase64Mp3 } = await import("./audio");
+    const res = await speakBernice({ data: { text } });
+    if (res.audio) {
+      await playBase64Mp3(res.audio);
+      return { provider: "elevenlabs" };
+    }
+    console.info("ElevenLabs unavailable, falling back to browser:", res.error);
+  } catch (e) {
+    console.warn("ElevenLabs TTS failed, falling back to browser:", e);
+  }
 
   if (hasSpeechSynthesis()) {
     const spoken = await browserSpeak(text, handle);

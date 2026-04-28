@@ -10,7 +10,7 @@ const TTSInput = z.object({
   text: z.string().min(1).max(800),
 });
 
-const VOICE_ID = "XrExE9yKIg1WjnnlVkGX"; // Matilda
+const VOICE_ID = "q9N7djfjET83mt2m58Rd"; // Baby (cloned)
 
 export const speakBernice = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => TTSInput.parse(d))

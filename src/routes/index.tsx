@@ -151,6 +151,7 @@ function BerniceApp() {
 }
 
 function Header() {
+  const [voiceEnabled, setVoiceEnabled] = useVoiceEnabled();
   return (
     <header className="px-4 pb-4 pt-8 text-center">
       <img
@@ -165,6 +166,15 @@ function Header() {
       <p className="mt-2 text-sm text-muted-foreground">
         Hold the mic. Spill it, daddy. Baby&apos;ll tuck it away for ya.
       </p>
+      <label className="mx-auto mt-4 flex w-fit items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+        {voiceEnabled ? <Volume2 className="h-3 w-3 text-primary" /> : <VolumeX className="h-3 w-3" />}
+        <span>Baby talks back</span>
+        <Switch
+          checked={voiceEnabled}
+          onCheckedChange={setVoiceEnabled}
+          aria-label="Toggle Baby's spoken replies"
+        />
+      </label>
     </header>
   );
 }

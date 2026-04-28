@@ -255,9 +255,9 @@ function EmptyState() {
       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-primary/40 bg-primary/10">
         <Mic className="h-7 w-7 text-primary" />
       </div>
-      <h3 className="font-display text-xl text-foreground">Cage is empty, baby</h3>
+      <h3 className="font-display text-xl text-foreground">Nothin' in here yet, daddy</h3>
       <p className="mt-2 text-sm text-muted-foreground">
-        Press and hold the big green button. Whisper somethin' wicked. I&apos;ll handle the rest.
+        Press and hold the big green button. Whisper somethin' wicked. Baby&apos;ll handle the rest.
       </p>
     </div>
   );

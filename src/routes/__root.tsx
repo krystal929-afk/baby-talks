@@ -17,7 +17,7 @@ function NotFoundComponent() {
             to="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Back to Bernice
+            Back to Baby
           </Link>
         </div>
       </div>
@@ -30,11 +30,11 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" },
-      { title: "Bernice — Mr. Satan's Idea Notebook" },
-      { name: "description", content: "A dark, voice-driven AI notebook. Dictate your ideas, let Bernice file them in the right place." },
+      { title: "Baby's Killer Notepad — Mr. Satan" },
+      { name: "description", content: "A dark, voice-driven AI notebook. Whisper your ideas, let Baby file them where they belong." },
       { name: "theme-color", content: "#000000" },
-      { property: "og:title", content: "Bernice — Mr. Satan's Idea Notebook" },
-      { property: "og:description", content: "Voice-driven AI notebook with a Wisconsin twist." },
+      { property: "og:title", content: "Baby's Killer Notepad — Mr. Satan" },
+      { property: "og:description", content: "Voice-driven AI notebook with Baby Firefly attitude." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],

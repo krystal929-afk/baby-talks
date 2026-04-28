@@ -329,7 +329,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
     if (dictation.listening) {
       const result = dictation.stop();
       if (result) saveIdea(result);
-      else toast("Didn't catch that one, daddy-o. Try again.");
+      else toast("Didn't catch that one, daddy. Try again.");
     }
   }
 

@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Mic, Square, Loader2, Volume2, Trash2, Sparkles, X, Plus, Send, Headphones } from "lucide-react";
+import { Mic, Square, Loader2, Volume2, Trash2, Sparkles, X, Plus, Send, Headphones, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useDictation } from "@/hooks/use-dictation";
+import { useVoiceEnabled } from "@/hooks/use-voice-pref";
+import { Switch } from "@/components/ui/switch";
 
 import { createSpeechHandle, speak, type SpeechHandle } from "@/lib/speak";
 import { classifyIdea, growIdea, type DevPack } from "@/server/bernice.functions";

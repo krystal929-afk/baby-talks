@@ -11,13 +11,15 @@ type SpeechRecognitionEvent = {
   resultIndex: number;
   results: ArrayLike<SpeechRecognitionResult>;
 };
+type SpeechRecognitionErrorEvent = { error: string };
 type SpeechRecognitionInstance = {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
   onresult: ((e: SpeechRecognitionEvent) => void) | null;
-  onerror: ((e: { error: string }) => void) | null;
+  onerror: ((e: SpeechRecognitionErrorEvent) => void) | null;
   onend: (() => void) | null;
+  onstart: (() => void) | null;
   start: () => void;
   stop: () => void;
   abort: () => void;
@@ -38,21 +40,41 @@ export function useDictation() {
   const [interim, setInterim] = useState("");
   const finalRef = useRef("");
   const recRef = useRef<SpeechRecognitionInstance | null>(null);
+  const wantListeningRef = useRef(false);
+  const startingRef = useRef(false);
 
   useEffect(() => {
     setSupported(!!getRecognitionCtor());
+    return () => {
+      wantListeningRef.current = false;
+      try { recRef.current?.abort(); } catch { /* noop */ }
+      recRef.current = null;
+    };
   }, []);
 
   const start = useCallback(() => {
     const Ctor = getRecognitionCtor();
     if (!Ctor) return;
+
+    // If already running, don't double-start (throws InvalidStateError).
+    if (startingRef.current || recRef.current) {
+      wantListeningRef.current = true;
+      return;
+    }
+
     const rec = new Ctor();
     rec.lang = "en-US";
     rec.continuous = true;
     rec.interimResults = true;
     finalRef.current = "";
     setInterim("");
+    wantListeningRef.current = true;
+    startingRef.current = true;
 
+    rec.onstart = () => {
+      startingRef.current = false;
+      setListening(true);
+    };
     rec.onresult = (e) => {
       let interimText = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -66,31 +88,50 @@ export function useDictation() {
       }
       setInterim(interimText);
     };
-    rec.onerror = () => {
-      setListening(false);
+    rec.onerror = (e) => {
+      // "no-speech" and "aborted" are benign — don't treat as fatal during a hold.
+      if (e.error !== "no-speech" && e.error !== "aborted") {
+        console.warn("dictation error:", e.error);
+        wantListeningRef.current = false;
+      }
     };
     rec.onend = () => {
+      startingRef.current = false;
+      // Auto-restart if user is still holding the mic and engine ended early
+      // (Chrome/iOS will close the stream after silence even with continuous=true).
+      if (wantListeningRef.current) {
+        try {
+          rec.start();
+          return;
+        } catch {
+          // fall through to fully stop
+        }
+      }
+      recRef.current = null;
       setListening(false);
     };
 
     try {
       rec.start();
       recRef.current = rec;
-      setListening(true);
     } catch {
+      startingRef.current = false;
+      wantListeningRef.current = false;
+      recRef.current = null;
       setListening(false);
     }
   }, []);
 
   const stop = useCallback((): string => {
+    wantListeningRef.current = false;
     const rec = recRef.current;
     if (rec) {
       try { rec.stop(); } catch { /* noop */ }
     }
-    setListening(false);
     const result = (finalRef.current + interim).trim();
     finalRef.current = "";
     setInterim("");
+    // listening flag clears in onend
     return result;
   }, [interim]);
 

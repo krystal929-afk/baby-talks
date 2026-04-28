@@ -284,6 +284,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
   const [pending, setPending] = useState(false);
   const [showText, setShowText] = useState(false);
   const holdActiveRef = useRef(false);
+  const pressStartTsRef = useRef(0);
   const speechHandleRef = useRef<SpeechHandle | null>(null);
 
   const liveText = (text || dictation.interim).trim();
@@ -292,10 +293,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
     if (!transcript.trim()) return;
     setPending(true);
     try {
-      // Get classification + reply from Bernice
       const cls = await classifyIdea({ data: { transcript } });
-
-      // Insert into DB
       const { error } = await supabase.from("ideas").insert({
         transcript,
         status: cls.status,
@@ -307,7 +305,6 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
       onSaved();
       toast.success(reply);
 
-      // Speak the reply (best-effort, only if user opted in)
       if (voiceEnabled) {
         try {
           await speak(reply, speechHandleRef.current ?? undefined);
@@ -327,20 +324,34 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
     }
   }
 
-  function handlePressStart() {
+  function handlePressStart(e: React.PointerEvent<HTMLButtonElement>) {
     if (pending) return;
+    // Keep the gesture pinned to this button even if the finger drifts.
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* noop */ }
     holdActiveRef.current = true;
+    pressStartTsRef.current = Date.now();
+    // Pre-warm TTS handle inside the user gesture (iOS requirement).
+    speechHandleRef.current = createSpeechHandle();
     if (dictation.supported) {
       dictation.start();
     } else {
       setShowText(true);
     }
   }
-  function handlePressEnd() {
+  function handlePressEnd(e: React.PointerEvent<HTMLButtonElement>) {
     if (!holdActiveRef.current) return;
     holdActiveRef.current = false;
-    speechHandleRef.current = createSpeechHandle();
-    if (dictation.listening) {
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+
+    const heldMs = Date.now() - pressStartTsRef.current;
+    if (heldMs < 250) {
+      // Tap was too short — engine may not have started. Cancel cleanly.
+      dictation.stop();
+      toast("Hold the button longer, daddy — keep it pressed while you talk.");
+      return;
+    }
+
+    if (dictation.supported) {
       const result = dictation.stop();
       if (result) saveIdea(result);
       else toast("Didn't catch that one, daddy. Try again.");
@@ -407,7 +418,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
             onPointerDown={handlePressStart}
             onPointerUp={handlePressEnd}
             onPointerCancel={handlePressEnd}
-            onPointerLeave={handlePressEnd}
+            onContextMenu={(e) => e.preventDefault()}
             className={cn(
               "relative flex h-20 w-20 select-none items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-glow)] transition",
               dictation.listening && "recording-pulse",

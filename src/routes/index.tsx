@@ -414,9 +414,6 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
 
           <button
             type="button"
-            onPointerDown={() => {
-              speechHandleRef.current = createSpeechHandle();
-            }}
             onClick={handleVoiceTest}
             className="rounded-full border border-border/60 p-3 text-muted-foreground transition hover:text-foreground"
             aria-label="Test voice"

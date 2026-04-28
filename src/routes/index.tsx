@@ -418,7 +418,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
             onPointerDown={handlePressStart}
             onPointerUp={handlePressEnd}
             onPointerCancel={handlePressEnd}
-            onPointerLeave={handlePressEnd}
+            onContextMenu={(e) => e.preventDefault()}
             className={cn(
               "relative flex h-20 w-20 select-none items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-glow)] transition",
               dictation.listening && "recording-pulse",

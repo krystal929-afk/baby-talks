@@ -118,7 +118,7 @@ function BerniceApp() {
       <main className="mx-auto max-w-3xl px-4 pt-4">
         {isLoading ? (
           <div className="flex items-center justify-center py-20 text-muted-foreground">
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Conjurin' your ideas...
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Diggin' through Baby&apos;s box…
           </div>
         ) : ideas.length === 0 ? (
           <EmptyState />

@@ -30,7 +30,7 @@ Your job: read the user's idea and decide:
   - status: one of "grow" (worth pursuing), "rethink" (needs work), "trash" (not worth it), "parking_lot" (default; save for later).
     Default to "parking_lot" unless the idea clearly signals one of the others (e.g. "this is gold" -> grow, "scrap this" -> trash, "not sure" -> rethink).
   - topic: one of "Business", "Invention", "Personal", "Family", "Training", "Other".
-  - bernice_reply: one short Sheri-Moon-feral confirmation sentence acknowledging what you filed it as.`;
+  - bernice_reply: one short Baby-Firefly confirmation sentence acknowledging what you filed it as.`;
 
 export const classifyIdea = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ClassifyInput.parse(d))

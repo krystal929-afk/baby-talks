@@ -409,20 +409,22 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
             onPointerCancel={handlePressEnd}
             onPointerLeave={handlePressEnd}
             className={cn(
-              "relative flex h-20 w-20 select-none items-center justify-center rounded-full text-primary-foreground shadow-[var(--shadow-glow)] transition",
-              "bg-[var(--gradient-toxic)]",
+              "relative flex h-20 w-20 select-none items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-glow)] transition",
               dictation.listening && "recording-pulse",
               pending && "opacity-60"
             )}
-            style={{ touchAction: "none" }}
+            style={{
+              touchAction: "none",
+              backgroundImage: "var(--gradient-toxic)",
+            }}
             aria-label="Hold to dictate"
           >
             {pending ? (
-              <Loader2 className="h-8 w-8 animate-spin" />
+              <Loader2 className="h-8 w-8 animate-spin" strokeWidth={2.5} />
             ) : dictation.listening ? (
-              <Square className="h-7 w-7" />
+              <Square className="h-8 w-8" strokeWidth={2.5} fill="currentColor" />
             ) : (
-              <Mic className="h-8 w-8" />
+              <Mic className="h-9 w-9" strokeWidth={2.5} />
             )}
           </button>
 

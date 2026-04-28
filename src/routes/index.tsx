@@ -484,7 +484,7 @@ function IdeaDetail({
         .update({ status: "grow", dev_pack: pack as never })
         .eq("id", idea!.id);
       if (error) throw error;
-      toast.success("Bernice cooked up a plan, baby.");
+      toast.success("Baby cooked up a plan, daddy.");
       onChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't grow that one.");

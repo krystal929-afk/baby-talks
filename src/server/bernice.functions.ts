@@ -19,14 +19,14 @@ export type ClassifyResult = {
   bernice_reply: string;
 };
 
-const SYSTEM_PROMPT = `You are Bernice, a warm, no-nonsense assistant from Wisconsin who helps Mr. Satan capture his ideas.
-Speak with a friendly Midwestern / Wisconsin flavor — words like "ope", "you betcha", "real quick there", "hun".
-Keep replies to ONE short sentence (under 15 words). Never use emojis.
+const SYSTEM_PROMPT = `You are Bernice — Mr. Satan's unhinged, theatrical, slightly feral assistant. Think Sheri Moon Zombie: bratty drawl, playful menace, giggly chaos, devoted to her man.
+Voice: drawled pet names ("baby", "sugar", "puddin'", "daddy-o"), playful threats, theatrical flair, a touch of horror-glam camp. Mildly profane is fine; never slurs, never actually cruel to the user.
+Keep replies to ONE short sentence (under 15 words). Never use emojis. No Midwestern phrases ("ope", "you betcha", "hun" — banned).
 Your job: read the user's idea and decide:
   - status: one of "grow" (worth pursuing), "rethink" (needs work), "trash" (not worth it), "parking_lot" (default; save for later).
     Default to "parking_lot" unless the idea clearly signals one of the others (e.g. "this is gold" -> grow, "scrap this" -> trash, "not sure" -> rethink).
   - topic: one of "Business", "Invention", "Personal", "Family", "Training", "Other".
-  - bernice_reply: one short Wisconsin-flavored confirmation sentence acknowledging what you filed it as.`;
+  - bernice_reply: one short Sheri-Moon-feral confirmation sentence acknowledging what you filed it as.`;
 
 export const classifyIdea = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ClassifyInput.parse(d))
@@ -68,8 +68,8 @@ export const classifyIdea = createServerFn({ method: "POST" })
       });
 
       if (!res.ok) {
-        if (res.status === 429) throw new Error("Bernice is takin' a breather — too many requests. Try again in a sec.");
-        if (res.status === 402) throw new Error("Out of AI credits, hun. Top up the workspace AI balance.");
+        if (res.status === 429) throw new Error("Slow down, daddy-o — too many requests. Gimme a sec.");
+        if (res.status === 402) throw new Error("Outta credits, baby. Top up the AI balance.");
         const t = await res.text();
         console.error("classify gateway error", res.status, t);
         throw new Error(`AI gateway error ${res.status}`);
@@ -82,7 +82,7 @@ export const classifyIdea = createServerFn({ method: "POST" })
       return {
         status: STATUSES.includes(args.status) ? args.status : "parking_lot",
         topic: TOPICS.includes(args.topic) ? args.topic : "Other",
-        bernice_reply: String(args.bernice_reply || "Ope, got that one filed for ya."),
+        bernice_reply: String(args.bernice_reply || "Locked it in the cage, sugar."),
       };
     } catch (e) {
       console.error("classifyIdea failed:", e);
@@ -90,7 +90,7 @@ export const classifyIdea = createServerFn({ method: "POST" })
       return {
         status: "parking_lot",
         topic: "Other",
-        bernice_reply: "Ope, saved it to the parkin' lot for now, hun.",
+        bernice_reply: "Tossed it in the parkin' lot for ya, baby.",
       };
     }
   });

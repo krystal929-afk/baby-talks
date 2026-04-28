@@ -290,12 +290,39 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
   const liveText = (text || dictation.interim).trim();
 
   async function saveIdea(transcript: string) {
-    // (kept above) — see original implementation
-    return _saveIdea(transcript);
-  }
+    if (!transcript.trim()) return;
+    setPending(true);
+    try {
+      const cls = await classifyIdea({ data: { transcript } });
+      const { error } = await supabase.from("ideas").insert({
+        transcript,
+        status: cls.status,
+        topic: cls.topic,
+      });
+      if (error) throw error;
 
-  // placeholder to keep TS happy; real saveIdea defined above this block
-  async function _saveIdea(_t: string) { /* replaced below */ }
+      const reply = cls.bernice_reply || "Tucked it away, daddy.";
+      onSaved();
+      toast.success(reply);
+
+      if (voiceEnabled) {
+        try {
+          await speak(reply, speechHandleRef.current ?? undefined);
+        } catch (e) {
+          console.warn("TTS skipped:", e);
+        }
+      }
+      speechHandleRef.current = null;
+
+      setText("");
+      setShowText(false);
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Baby chipped a nail. Try again, sugar britches.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   function handlePressStart(e: React.PointerEvent<HTMLButtonElement>) {
     if (pending) return;

@@ -307,14 +307,15 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
       onSaved();
       toast.success(reply);
 
-      // Speak the reply (best-effort)
-      try {
-        await speak(reply, speechHandleRef.current ?? undefined);
-      } catch (e) {
-        console.warn("TTS skipped:", e);
-      } finally {
-        speechHandleRef.current = null;
+      // Speak the reply (best-effort, only if user opted in)
+      if (voiceEnabled) {
+        try {
+          await speak(reply, speechHandleRef.current ?? undefined);
+        } catch (e) {
+          console.warn("TTS skipped:", e);
+        }
       }
+      speechHandleRef.current = null;
 
       setText("");
       setShowText(false);

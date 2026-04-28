@@ -22,33 +22,24 @@ function configureUtterance(utt: SpeechSynthesisUtterance) {
   if (preferred) utt.voice = preferred;
 }
 
-function warmSpeechSynthesis(): boolean {
-  if (!hasSpeechSynthesis()) return false;
-
-  try {
-    window.speechSynthesis.cancel();
-    const warmup = new SpeechSynthesisUtterance("Ope.");
-    configureUtterance(warmup);
-    warmup.volume = 0;
-    window.speechSynthesis.speak(warmup);
-    return true;
-  } catch (e) {
-    console.warn("Speech warmup failed:", e);
-    return false;
-  }
-}
-
 // Create this synchronously inside a tap/press handler on iPhone.
+// iOS Safari requires speechSynthesis.speak() to be invoked from within a user
+// gesture. Warming with a separate cancel+speak race causes "canceled" errors,
+// so we just unlock the audio context and pre-build the utterance object.
 export function createSpeechHandle(): SpeechHandle {
   prepareAudioPlayback();
   if (!hasSpeechSynthesis()) {
     return { utterance: null, warmed: false };
   }
 
-  const warmed = warmSpeechSynthesis();
+  // Resume any paused engine (iOS will leave it suspended after long idle).
+  try {
+    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+  } catch { /* noop */ }
+
   const utterance = new SpeechSynthesisUtterance("");
   configureUtterance(utterance);
-  return { utterance, warmed };
+  return { utterance, warmed: true };
 }
 
 function browserSpeak(text: string, handle?: SpeechHandle): Promise<boolean> {

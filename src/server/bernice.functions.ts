@@ -72,8 +72,8 @@ export const classifyIdea = createServerFn({ method: "POST" })
       });
 
       if (!res.ok) {
-        if (res.status === 429) throw new Error("Slow down, daddy-o — too many requests. Gimme a sec.");
-        if (res.status === 402) throw new Error("Outta credits, baby. Top up the AI balance.");
+        if (res.status === 429) throw new Error("Slow down, daddy — too many requests. Gimme a sec, hee hee.");
+        if (res.status === 402) throw new Error("Outta credits, sugar britches. Top up the AI balance.");
         const t = await res.text();
         console.error("classify gateway error", res.status, t);
         throw new Error(`AI gateway error ${res.status}`);

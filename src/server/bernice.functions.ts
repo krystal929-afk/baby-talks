@@ -86,7 +86,7 @@ export const classifyIdea = createServerFn({ method: "POST" })
       return {
         status: STATUSES.includes(args.status) ? args.status : "parking_lot",
         topic: TOPICS.includes(args.topic) ? args.topic : "Other",
-        bernice_reply: String(args.bernice_reply || "Locked it in the cage, sugar."),
+        bernice_reply: String(args.bernice_reply || "Tucked it in my jewelry box, daddy."),
       };
     } catch (e) {
       console.error("classifyIdea failed:", e);

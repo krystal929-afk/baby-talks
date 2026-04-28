@@ -307,7 +307,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
       setShowText(false);
     } catch (e) {
       console.error(e);
-      toast.error(e instanceof Error ? e.message : "Bernice broke a nail. Try again, sugar.");
+      toast.error(e instanceof Error ? e.message : "Baby chipped a nail. Try again, sugar britches.");
     } finally {
       setPending(false);
     }

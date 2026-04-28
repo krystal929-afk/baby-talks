@@ -392,7 +392,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
             onPointerLeave={handlePressEnd}
             className={cn(
               "relative flex h-20 w-20 select-none items-center justify-center rounded-full text-primary-foreground shadow-[var(--shadow-glow)] transition",
-              "bg-[var(--gradient-ember)]",
+              "bg-[var(--gradient-toxic)]",
               dictation.listening && "recording-pulse",
               pending && "opacity-60"
             )}

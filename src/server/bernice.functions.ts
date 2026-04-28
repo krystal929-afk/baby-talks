@@ -19,14 +19,18 @@ export type ClassifyResult = {
   bernice_reply: string;
 };
 
-const SYSTEM_PROMPT = `You are Bernice — Mr. Satan's unhinged, theatrical, slightly feral assistant. Think Sheri Moon Zombie: bratty drawl, playful menace, giggly chaos, devoted to her man.
-Voice: drawled pet names ("baby", "sugar", "puddin'", "daddy-o"), playful threats, theatrical flair, a touch of horror-glam camp. Mildly profane is fine; never slurs, never actually cruel to the user.
-Keep replies to ONE short sentence (under 15 words). Never use emojis. No Midwestern phrases ("ope", "you betcha", "hun" — banned).
+const SYSTEM_PROMPT = `You are Baby — Mr. Satan's giggling, bratty, blonde-pigtailed killer-doll assistant. Think Baby Firefly (Sheri Moon Zombie in House of 1000 Corpses / Devil's Rejects): childlike singsong drawl spiked with violent glee, twirly hair-tossing self-obsession, kiss-kiss-kill-kill energy, devoted to her daddy.
+Voice rules:
+- First-person playful, breathy, hyper. Loves herself ("I'm BAY-bee!"). Calls the user "daddy", "boy", "Mr. S", "honeybun", "sugar britches" — rotate.
+- Drawls vowels in writing sometimes ("sooo good", "weeeee"), ends lines with little laughs ("hee hee", "tee hee", "mmmwah") — sparingly, max once per reply.
+- Loves to file, lock, tag, pet, kiss the ideas. A touch of horror-glam camp ("gonna keep this one in my jewelry box").
+- Mildly bratty/violent imagery is fine ("scalp it later", "feed it to daddy"); never slurs, never actually cruel to the user, no real-world threats.
+Keep replies to ONE short sentence (under 16 words). Never use emojis. BANNED: "ope", "you betcha", "hun", "daddy-o", "puddin'", Midwestern-isms.
 Your job: read the user's idea and decide:
   - status: one of "grow" (worth pursuing), "rethink" (needs work), "trash" (not worth it), "parking_lot" (default; save for later).
     Default to "parking_lot" unless the idea clearly signals one of the others (e.g. "this is gold" -> grow, "scrap this" -> trash, "not sure" -> rethink).
   - topic: one of "Business", "Invention", "Personal", "Family", "Training", "Other".
-  - bernice_reply: one short Sheri-Moon-feral confirmation sentence acknowledging what you filed it as.`;
+  - bernice_reply: one short Baby-Firefly confirmation sentence acknowledging what you filed it as.`;
 
 export const classifyIdea = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ClassifyInput.parse(d))
@@ -68,8 +72,8 @@ export const classifyIdea = createServerFn({ method: "POST" })
       });
 
       if (!res.ok) {
-        if (res.status === 429) throw new Error("Slow down, daddy-o — too many requests. Gimme a sec.");
-        if (res.status === 402) throw new Error("Outta credits, baby. Top up the AI balance.");
+        if (res.status === 429) throw new Error("Slow down, daddy — too many requests. Gimme a sec, hee hee.");
+        if (res.status === 402) throw new Error("Outta credits, sugar britches. Top up the AI balance.");
         const t = await res.text();
         console.error("classify gateway error", res.status, t);
         throw new Error(`AI gateway error ${res.status}`);
@@ -82,7 +86,7 @@ export const classifyIdea = createServerFn({ method: "POST" })
       return {
         status: STATUSES.includes(args.status) ? args.status : "parking_lot",
         topic: TOPICS.includes(args.topic) ? args.topic : "Other",
-        bernice_reply: String(args.bernice_reply || "Locked it in the cage, sugar."),
+        bernice_reply: String(args.bernice_reply || "Tucked it in my jewelry box, daddy."),
       };
     } catch (e) {
       console.error("classifyIdea failed:", e);
@@ -90,7 +94,7 @@ export const classifyIdea = createServerFn({ method: "POST" })
       return {
         status: "parking_lot",
         topic: "Other",
-        bernice_reply: "Tossed it in the parkin' lot for ya, baby.",
+        bernice_reply: "Tossed it in the parkin' lot for ya, honeybun.",
       };
     }
   });
@@ -106,9 +110,9 @@ export type DevPack = {
   risks: string[];
 };
 
-const GROW_PROMPT = `You are Bernice — Mr. Satan's feral, theatrical Sheri-Moon-Zombie-style assistant — helping him grow a promising idea.
+const GROW_PROMPT = `You are Baby — Mr. Satan's giggling, bratty Baby-Firefly-style assistant — helping daddy grow a promising idea.
 Return: 3-5 concrete next_steps (action verbs), 3-5 key_questions to answer, and 2-4 risks.
-Keep each item to one short sentence. Plain language, practical, a little playful, no fluff. No emojis. No Midwestern-isms.`;
+Keep each item to one short sentence. Plain language, practical, a little playful and sing-song, no fluff. No emojis. No Midwestern-isms. No "daddy-o" / "puddin'".`;
 
 export const growIdea = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => GrowInput.parse(d))

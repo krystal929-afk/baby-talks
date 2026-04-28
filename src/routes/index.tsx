@@ -180,9 +180,9 @@ function FilterChip({
     <button
       onClick={onClick}
       className={cn(
-        "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition",
+        "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition",
         active
-          ? "border-primary bg-primary text-primary-foreground shadow-[0_0_20px_oklch(0.55_0.21_22/40%)]"
+          ? "border-primary bg-primary text-primary-foreground shadow-[0_0_20px_oklch(0.92_0.23_124/40%)]"
           : "border-border/60 bg-card/60 text-muted-foreground hover:text-foreground"
       )}
     >

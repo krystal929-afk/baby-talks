@@ -335,7 +335,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
 
   async function handleVoiceTest() {
     const speechHandle = createSpeechHandle();
-    const result = await speak("Hi baby, I can talk now.", speechHandle);
+    const result = await speak("I'm Baby — hi daddy, I can talk now.", speechHandle);
     if (result.error) toast("Voice test did not start. Check iPhone silent mode, volume, and Spoken Content voices.");
   }
 

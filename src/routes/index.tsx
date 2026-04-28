@@ -409,7 +409,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
             onPointerCancel={handlePressEnd}
             onPointerLeave={handlePressEnd}
             className={cn(
-              "relative flex h-28 w-28 select-none items-center justify-center rounded-full text-primary-foreground shadow-[var(--shadow-glow)] transition",
+              "relative flex h-20 w-20 select-none items-center justify-center rounded-full text-primary-foreground shadow-[var(--shadow-glow)] transition",
               "bg-[var(--gradient-toxic)]",
               dictation.listening && "recording-pulse",
               pending && "opacity-60"
@@ -418,11 +418,11 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
             aria-label="Hold to dictate"
           >
             {pending ? (
-              <Loader2 className="!h-12 !w-12 animate-spin" />
+              <Loader2 className="h-8 w-8 animate-spin" />
             ) : dictation.listening ? (
-              <Square className="!h-11 !w-11" />
+              <Square className="h-7 w-7" />
             ) : (
-              <Mic className="!h-12 !w-12" />
+              <Mic className="h-8 w-8" />
             )}
           </button>
 

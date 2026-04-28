@@ -290,7 +290,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
       });
       if (error) throw error;
 
-      const reply = cls.bernice_reply || "Locked it up tight, baby.";
+      const reply = cls.bernice_reply || "Tucked it away, daddy.";
       onSaved();
       toast.success(reply);
 

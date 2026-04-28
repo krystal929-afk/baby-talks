@@ -43,25 +43,25 @@ const STATUS_META: Record<Status, { label: string; cls: string; chipCls: string;
     label: "Grow",
     cls: "border-grow/50 bg-grow/10",
     chipCls: "bg-grow text-grow-foreground",
-    tagline: "Worth chasin'",
+    tagline: "Feed it, baby",
   },
   rethink: {
     label: "Rethink",
     cls: "border-rethink/50 bg-rethink/10",
     chipCls: "bg-rethink text-rethink-foreground",
-    tagline: "Needs more cookin'",
+    tagline: "Still bleedin'",
   },
   parking_lot: {
     label: "Parking Lot",
     cls: "border-parking/50 bg-parking/10",
     chipCls: "bg-parking text-parking-foreground",
-    tagline: "Save for later",
+    tagline: "Caged for later",
   },
   trash: {
     label: "Trash",
     cls: "border-trash/50 bg-trash/10",
     chipCls: "bg-trash text-trash-foreground",
-    tagline: "Toss it out",
+    tagline: "Burn it down",
   },
 };
 
@@ -118,7 +118,7 @@ function BerniceApp() {
       <main className="mx-auto max-w-3xl px-4 pt-4">
         {isLoading ? (
           <div className="flex items-center justify-center py-20 text-muted-foreground">
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Summoning your ideas...
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Conjurin' your ideas...
           </div>
         ) : ideas.length === 0 ? (
           <EmptyState />
@@ -161,7 +161,7 @@ function Header() {
         Bernice · Idea Notebook
       </p>
       <p className="mt-2 text-sm text-muted-foreground">
-        Hold the mic. Spill the idea. I&apos;ll file it, hun.
+        Hold the mic. Spill it, daddy-o. I&apos;ll cage it for ya.
       </p>
     </header>
   );
@@ -255,9 +255,9 @@ function EmptyState() {
       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-primary/40 bg-primary/10">
         <Mic className="h-7 w-7 text-primary" />
       </div>
-      <h3 className="font-display text-xl text-foreground">No ideas yet, hun</h3>
+      <h3 className="font-display text-xl text-foreground">Cage is empty, baby</h3>
       <p className="mt-2 text-sm text-muted-foreground">
-        Press and hold the big red button. Say what&apos;s on your mind. I&apos;ll do the rest.
+        Press and hold the big green button. Whisper somethin' wicked. I&apos;ll handle the rest.
       </p>
     </div>
   );
@@ -290,7 +290,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
       });
       if (error) throw error;
 
-      const reply = "You betcha, savin' it now.";
+      const reply = cls.bernice_reply || "Locked it up tight, baby.";
       onSaved();
       toast.success(reply);
 
@@ -307,7 +307,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
       setShowText(false);
     } catch (e) {
       console.error(e);
-      toast.error(e instanceof Error ? e.message : "Bernice tripped on the rug. Try again.");
+      toast.error(e instanceof Error ? e.message : "Bernice broke a nail. Try again, sugar.");
     } finally {
       setPending(false);
     }
@@ -329,13 +329,13 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
     if (dictation.listening) {
       const result = dictation.stop();
       if (result) saveIdea(result);
-      else toast("I didn't catch that, hun. Try again.");
+      else toast("Didn't catch that one, daddy-o. Try again.");
     }
   }
 
   async function handleVoiceTest() {
     const speechHandle = createSpeechHandle();
-    const result = await speak("Ope, I can talk now, hun.", speechHandle);
+    const result = await speak("Hi baby, I can talk now.", speechHandle);
     if (result.error) toast("Voice test did not start. Check iPhone silent mode, volume, and Spoken Content voices.");
   }
 
@@ -345,7 +345,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
         {(dictation.listening || liveText) && (
           <div className="mb-3 rounded-xl border border-border/60 bg-card/80 px-3 py-2 text-sm text-foreground">
             <span className="text-muted-foreground">{dictation.listening ? "Listening… " : ""}</span>
-            {liveText || <span className="italic text-muted-foreground">say somethin'…</span>}
+            {liveText || <span className="italic text-muted-foreground">whisper somethin'…</span>}
           </div>
         )}
 
@@ -484,7 +484,7 @@ function IdeaDetail({
         .update({ status: "grow", dev_pack: pack as never })
         .eq("id", idea!.id);
       if (error) throw error;
-      toast.success("Bernice cooked up a plan, hun.");
+      toast.success("Bernice cooked up a plan, baby.");
       onChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't grow that one.");

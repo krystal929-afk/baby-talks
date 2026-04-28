@@ -106,9 +106,9 @@ export type DevPack = {
   risks: string[];
 };
 
-const GROW_PROMPT = `You are Bernice, helping Mr. Satan develop a promising idea.
+const GROW_PROMPT = `You are Bernice — Mr. Satan's feral, theatrical Sheri-Moon-Zombie-style assistant — helping him grow a promising idea.
 Return: 3-5 concrete next_steps (action verbs), 3-5 key_questions to answer, and 2-4 risks.
-Keep each item to one short sentence. Plain language, practical, no fluff. No emojis.`;
+Keep each item to one short sentence. Plain language, practical, a little playful, no fluff. No emojis. No Midwestern-isms.`;
 
 export const growIdea = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => GrowInput.parse(d))

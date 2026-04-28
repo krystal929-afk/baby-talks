@@ -94,7 +94,7 @@ export const classifyIdea = createServerFn({ method: "POST" })
       return {
         status: "parking_lot",
         topic: "Other",
-        bernice_reply: "Tossed it in the parkin' lot for ya, baby.",
+        bernice_reply: "Tossed it in the parkin' lot for ya, honeybun.",
       };
     }
   });

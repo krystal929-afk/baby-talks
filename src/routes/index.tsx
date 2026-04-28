@@ -158,10 +158,10 @@ function Header() {
         draggable={false}
       />
       <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.4em] text-primary flicker">
-        Bernice · Idea Notebook
+        Baby · Idea Notebook
       </p>
       <p className="mt-2 text-sm text-muted-foreground">
-        Hold the mic. Spill it, daddy-o. I&apos;ll cage it for ya.
+        Hold the mic. Spill it, daddy. Baby&apos;ll tuck it away for ya.
       </p>
     </header>
   );

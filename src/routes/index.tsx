@@ -43,25 +43,25 @@ const STATUS_META: Record<Status, { label: string; cls: string; chipCls: string;
     label: "Grow",
     cls: "border-grow/50 bg-grow/10",
     chipCls: "bg-grow text-grow-foreground",
-    tagline: "Feed it, baby",
+    tagline: "Feed it, daddy",
   },
   rethink: {
     label: "Rethink",
     cls: "border-rethink/50 bg-rethink/10",
     chipCls: "bg-rethink text-rethink-foreground",
-    tagline: "Still bleedin'",
+    tagline: "Still squirmin'",
   },
   parking_lot: {
     label: "Parking Lot",
     cls: "border-parking/50 bg-parking/10",
     chipCls: "bg-parking text-parking-foreground",
-    tagline: "Caged for later",
+    tagline: "Tucked away",
   },
   trash: {
     label: "Trash",
     cls: "border-trash/50 bg-trash/10",
     chipCls: "bg-trash text-trash-foreground",
-    tagline: "Burn it down",
+    tagline: "Burn it, boy",
   },
 };
 

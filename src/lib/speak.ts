@@ -1,8 +1,11 @@
 import { prepareAudioPlayback } from "./audio";
+import { playBase64Mp3 } from "./audio";
+import { speakBernice } from "@/server/voice.functions";
 
 export type SpeechHandle = {
   utterance: SpeechSynthesisUtterance | null;
   warmed: boolean;
+  audio: HTMLAudioElement | null;
 };
 
 function hasSpeechSynthesis(): boolean {

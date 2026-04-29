@@ -107,6 +107,8 @@ export async function speak(text: string, handle?: SpeechHandle): Promise<{ prov
     const res = await speakBernice({ data: { text } });
     if (res.audio) {
       if (handle?.audio) {
+        handle.audio.muted = false;
+        handle.audio.volume = 1;
         handle.audio.src = `data:audio/mpeg;base64,${res.audio}`;
         try {
           await handle.audio.play();

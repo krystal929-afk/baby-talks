@@ -106,6 +106,15 @@ export async function speak(text: string, handle?: SpeechHandle): Promise<{ prov
   try {
     const res = await speakBernice({ data: { text } });
     if (res.audio) {
+      // WebAudio routes to the media channel (loud + respects volume slider).
+      // The HTMLAudioElement path on iOS often routes to the ringer channel
+      // and ends up barely audible, so prefer WebAudio when available.
+      try {
+        await playBase64Mp3(res.audio);
+        return { provider: "elevenlabs" };
+      } catch (e) {
+        console.warn("WebAudio playback failed, trying pre-warmed element:", e);
+      }
       if (handle?.audio) {
         handle.audio.muted = false;
         handle.audio.volume = 1;
@@ -118,10 +127,9 @@ export async function speak(text: string, handle?: SpeechHandle): Promise<{ prov
           });
           return { provider: "elevenlabs" };
         } catch (e) {
-          console.warn("Pre-warmed audio play failed, falling back:", e);
+          console.warn("Pre-warmed audio play failed:", e);
         }
       }
-      await playBase64Mp3(res.audio);
       return { provider: "elevenlabs" };
     }
     console.info("ElevenLabs unavailable, falling back to browser:", res.error);

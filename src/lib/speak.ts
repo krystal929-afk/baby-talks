@@ -1,8 +1,11 @@
 import { prepareAudioPlayback } from "./audio";
+import { playBase64Mp3 } from "./audio";
+import { speakBernice } from "@/server/voice.functions";
 
 export type SpeechHandle = {
   utterance: SpeechSynthesisUtterance | null;
   warmed: boolean;
+  audio: HTMLAudioElement | null;
 };
 
 function hasSpeechSynthesis(): boolean {
@@ -28,18 +31,32 @@ function configureUtterance(utt: SpeechSynthesisUtterance) {
 // so we just unlock the audio context and pre-build the utterance object.
 export function createSpeechHandle(): SpeechHandle {
   prepareAudioPlayback();
-  if (!hasSpeechSynthesis()) {
-    return { utterance: null, warmed: false };
+
+  // Pre-create an Audio element inside the user gesture. iOS Safari needs the
+  // element to be instantiated and a play() attempt made within the gesture
+  // for any later src assignment + play() to be allowed.
+  let audio: HTMLAudioElement | null = null;
+  if (typeof window !== "undefined") {
+    try {
+      audio = new Audio();
+      audio.muted = true;
+      // Kick a no-op play to consume the gesture; immediately pause.
+      void audio.play().then(() => audio?.pause()).catch(() => undefined);
+      audio.muted = false;
+    } catch { audio = null; }
   }
 
-  // Resume any paused engine (iOS will leave it suspended after long idle).
+  if (!hasSpeechSynthesis()) {
+    return { utterance: null, warmed: false, audio };
+  }
+
   try {
     if (window.speechSynthesis.paused) window.speechSynthesis.resume();
   } catch { /* noop */ }
 
   const utterance = new SpeechSynthesisUtterance("");
   configureUtterance(utterance);
-  return { utterance, warmed: true };
+  return { utterance, warmed: true, audio };
 }
 
 function browserSpeak(text: string, handle?: SpeechHandle): Promise<boolean> {
@@ -87,10 +104,21 @@ export async function speak(text: string, handle?: SpeechHandle): Promise<{ prov
 
   // Try ElevenLabs first (cloned Baby voice)
   try {
-    const { speakBernice } = await import("@/server/voice.functions");
-    const { playBase64Mp3 } = await import("./audio");
     const res = await speakBernice({ data: { text } });
     if (res.audio) {
+      if (handle?.audio) {
+        handle.audio.src = `data:audio/mpeg;base64,${res.audio}`;
+        try {
+          await handle.audio.play();
+          await new Promise<void>((resolve) => {
+            handle.audio!.onended = () => resolve();
+            handle.audio!.onerror = () => resolve();
+          });
+          return { provider: "elevenlabs" };
+        } catch (e) {
+          console.warn("Pre-warmed audio play failed, falling back:", e);
+        }
+      }
       await playBase64Mp3(res.audio);
       return { provider: "elevenlabs" };
     }

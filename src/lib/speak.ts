@@ -104,10 +104,21 @@ export async function speak(text: string, handle?: SpeechHandle): Promise<{ prov
 
   // Try ElevenLabs first (cloned Baby voice)
   try {
-    const { speakBernice } = await import("@/server/voice.functions");
-    const { playBase64Mp3 } = await import("./audio");
     const res = await speakBernice({ data: { text } });
     if (res.audio) {
+      if (handle?.audio) {
+        handle.audio.src = `data:audio/mpeg;base64,${res.audio}`;
+        try {
+          await handle.audio.play();
+          await new Promise<void>((resolve) => {
+            handle.audio!.onended = () => resolve();
+            handle.audio!.onerror = () => resolve();
+          });
+          return { provider: "elevenlabs" };
+        } catch (e) {
+          console.warn("Pre-warmed audio play failed, falling back:", e);
+        }
+      }
       await playBase64Mp3(res.audio);
       return { provider: "elevenlabs" };
     }

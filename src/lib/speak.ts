@@ -1,6 +1,6 @@
 import { prepareAudioPlayback } from "./audio";
 import { playBase64Mp3 } from "./audio";
-import { speakBernice } from "@/server/voice.functions";
+import { speakBaby } from "@/server/voice.functions";
 
 export type SpeechHandle = {
   utterance: SpeechSynthesisUtterance | null;
@@ -82,17 +82,17 @@ function browserSpeak(text: string, handle?: SpeechHandle): Promise<boolean> {
       };
       const timeout = window.setTimeout(() => finish(true), Math.max(3500, Math.min(12000, text.length * 110)));
 
-      utt.onstart = () => console.info("Bernice voice started");
+      utt.onstart = () => console.info("Baby voice started");
       utt.onend = () => finish(true);
       utt.onerror = (event) => {
-        console.warn("Bernice voice error:", event.error);
+        console.warn("Baby voice error:", event.error);
         finish(false);
       };
 
       window.speechSynthesis.speak(utt);
       if (window.speechSynthesis.paused) window.speechSynthesis.resume();
     } catch (e) {
-      console.warn("Bernice voice failed:", e);
+      console.warn("Baby voice failed:", e);
       resolve(false);
     }
   });
@@ -104,7 +104,7 @@ export async function speak(text: string, handle?: SpeechHandle): Promise<{ prov
 
   // Try ElevenLabs first (cloned Baby voice)
   try {
-    const res = await speakBernice({ data: { text } });
+    const res = await speakBaby({ data: { text } });
     if (res.audio) {
       // WebAudio routes to the media channel (loud + respects volume slider).
       // The HTMLAudioElement path on iOS often routes to the ringer channel

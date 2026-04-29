@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-// ElevenLabs TTS — Bernice's voice. Returns base64 mp3 to keep the JSON path simple.
+// ElevenLabs TTS — Baby's voice. Returns base64 mp3 to keep the JSON path simple.
 // Voice: Matilda (XrExE9yKIg1WjnnlVkGX) — warm, friendly female. Closest natural fit
 // for a Wisconsin/Midwestern feel without a custom clone. Wisconsin character comes
 // from the script itself ("ope", "you betcha", etc.).
@@ -12,7 +12,7 @@ const TTSInput = z.object({
 
 const VOICE_ID = "q9N7djfjET83mt2m58Rd"; // Baby (cloned)
 
-export const speakBernice = createServerFn({ method: "POST" })
+export const speakBaby = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => TTSInput.parse(d))
   .handler(async ({ data }): Promise<{ audio: string | null; error: string | null }> => {
     const apiKey = process.env.ELEVENLABS_API_KEY;
@@ -51,7 +51,7 @@ export const speakBernice = createServerFn({ method: "POST" })
       const audio = Buffer.from(buf).toString("base64");
       return { audio, error: null };
     } catch (e) {
-      console.error("speakBernice failed:", e);
+      console.error("speakBaby failed:", e);
       return { audio: null, error: e instanceof Error ? e.message : "Unknown error" };
     }
   });

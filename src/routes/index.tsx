@@ -10,7 +10,7 @@ import { useVoiceEnabled } from "@/hooks/use-voice-pref";
 import { Switch } from "@/components/ui/switch";
 
 import { createSpeechHandle, speak, type SpeechHandle } from "@/lib/speak";
-import { classifyIdea, growIdea, type DevPack } from "@/server/bernice.functions";
+import { classifyIdea, growIdea, type DevPack } from "@/server/baby.functions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,7 +23,7 @@ const qc = new QueryClient();
 export const Route = createFileRoute("/")({
   component: () => (
     <QueryClientProvider client={qc}>
-      <BerniceApp />
+      <BabyApp />
     </QueryClientProvider>
   ),
 });
@@ -69,7 +69,7 @@ const STATUS_META: Record<Status, { label: string; cls: string; chipCls: string;
 
 const STATUS_ORDER: Status[] = ["grow", "rethink", "parking_lot", "trash"];
 
-function BerniceApp() {
+function BabyApp() {
   const queryClient = useQueryClient();
   const [openIdea, setOpenIdea] = useState<Idea | null>(null);
   const [topicFilter, setTopicFilter] = useState<string>("all");
@@ -628,7 +628,7 @@ function DevPackView({ pack }: { pack: DevPack }) {
     <div className="space-y-4 rounded-xl border border-grow/40 bg-grow/5 p-4">
       <div className="flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-grow" />
-        <h3 className="font-display text-lg">Bernice&apos;s plan</h3>
+        <h3 className="font-display text-lg">Baby&apos;s plan</h3>
       </div>
       <PackList title="Next steps" items={pack.next_steps} />
       <PackList title="Key questions" items={pack.key_questions} />

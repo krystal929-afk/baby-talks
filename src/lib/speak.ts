@@ -31,18 +31,32 @@ function configureUtterance(utt: SpeechSynthesisUtterance) {
 // so we just unlock the audio context and pre-build the utterance object.
 export function createSpeechHandle(): SpeechHandle {
   prepareAudioPlayback();
-  if (!hasSpeechSynthesis()) {
-    return { utterance: null, warmed: false };
+
+  // Pre-create an Audio element inside the user gesture. iOS Safari needs the
+  // element to be instantiated and a play() attempt made within the gesture
+  // for any later src assignment + play() to be allowed.
+  let audio: HTMLAudioElement | null = null;
+  if (typeof window !== "undefined") {
+    try {
+      audio = new Audio();
+      audio.muted = true;
+      // Kick a no-op play to consume the gesture; immediately pause.
+      void audio.play().then(() => audio?.pause()).catch(() => undefined);
+      audio.muted = false;
+    } catch { audio = null; }
   }
 
-  // Resume any paused engine (iOS will leave it suspended after long idle).
+  if (!hasSpeechSynthesis()) {
+    return { utterance: null, warmed: false, audio };
+  }
+
   try {
     if (window.speechSynthesis.paused) window.speechSynthesis.resume();
   } catch { /* noop */ }
 
   const utterance = new SpeechSynthesisUtterance("");
   configureUtterance(utterance);
-  return { utterance, warmed: true };
+  return { utterance, warmed: true, audio };
 }
 
 function browserSpeak(text: string, handle?: SpeechHandle): Promise<boolean> {

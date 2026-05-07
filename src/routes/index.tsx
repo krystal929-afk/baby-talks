@@ -481,20 +481,6 @@ function IdeaDetail({
     }
   }
 
-  async function handleSpeak() {
-    const speechHandle = createSpeechHandle();
-    setSpeaking(true);
-    try {
-      const result = await speak(idea!.transcript.slice(0, 600), speechHandle);
-      if (result.provider === "none") toast("No voice available on this device.");
-      else if (result.error) toast("Voice did not start. Check silent mode, volume, and Spoken Content voices.");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't speak that.");
-    } finally {
-      setSpeaking(false);
-    }
-  }
-
   async function handleSaveText() {
     if (editText.trim() && editText !== idea!.transcript) {
       await update({ transcript: editText.trim() });

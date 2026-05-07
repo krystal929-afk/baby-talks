@@ -1,15 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Mic, Square, Loader2, Volume2, Trash2, Sparkles, X, Plus, Send, Headphones, VolumeX } from "lucide-react";
+import { Mic, Square, Loader2, Trash2, Sparkles, X, Plus, Send } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useDictation } from "@/hooks/use-dictation";
-import { useVoiceEnabled } from "@/hooks/use-voice-pref";
-import { Switch } from "@/components/ui/switch";
-
-import { createSpeechHandle, speak, type SpeechHandle } from "@/lib/speak";
 import { classifyIdea, growIdea, type DevPack } from "@/server/baby.functions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -151,7 +147,6 @@ function BabyApp() {
 }
 
 function Header() {
-  const [voiceEnabled, setVoiceEnabled] = useVoiceEnabled();
   return (
     <header className="px-4 pb-4 pt-8 text-center">
       <img
@@ -166,15 +161,6 @@ function Header() {
       <p className="mt-2 text-sm text-muted-foreground">
         Hold the mic. Spill it, daddy. Baby&apos;ll tuck it away for ya.
       </p>
-      <label className="mx-auto mt-4 flex w-fit items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-        {voiceEnabled ? <Volume2 className="h-3 w-3 text-primary" /> : <VolumeX className="h-3 w-3" />}
-        <span>Baby talks back</span>
-        <Switch
-          checked={voiceEnabled}
-          onCheckedChange={setVoiceEnabled}
-          aria-label="Toggle Baby's spoken replies"
-        />
-      </label>
     </header>
   );
 }
@@ -279,13 +265,11 @@ function EmptyState() {
 
 function CaptureBar({ onSaved }: { onSaved: () => void }) {
   const dictation = useDictation();
-  const [voiceEnabled] = useVoiceEnabled();
   const [text, setText] = useState("");
   const [pending, setPending] = useState(false);
   const [showText, setShowText] = useState(false);
   const holdActiveRef = useRef(false);
   const pressStartTsRef = useRef(0);
-  const speechHandleRef = useRef<SpeechHandle | null>(null);
 
   const liveText = (text || dictation.interim).trim();
 
@@ -305,15 +289,6 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
       onSaved();
       toast.success(reply);
 
-      if (voiceEnabled) {
-        try {
-          await speak(reply, speechHandleRef.current ?? undefined);
-        } catch (e) {
-          console.warn("TTS skipped:", e);
-        }
-      }
-      speechHandleRef.current = null;
-
       setText("");
       setShowText(false);
     } catch (e) {
@@ -326,12 +301,9 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
 
   function handlePressStart(e: React.PointerEvent<HTMLButtonElement>) {
     if (pending) return;
-    // Keep the gesture pinned to this button even if the finger drifts.
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* noop */ }
     holdActiveRef.current = true;
     pressStartTsRef.current = Date.now();
-    // Pre-warm TTS handle inside the user gesture (iOS requirement).
-    speechHandleRef.current = createSpeechHandle();
     if (dictation.supported) {
       dictation.start();
     } else {
@@ -358,16 +330,6 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
     }
   }
 
-  function handleVoiceTest() {
-    const speechHandle = createSpeechHandle();
-    // Fire speak synchronously inside the gesture; iOS Safari requires this.
-    void speak("I'm Baby — hi daddy, I can talk now.", speechHandle).then((result) => {
-      if (result.error) {
-        toast("Voice test did not start. Check iPhone silent mode, volume, and Spoken Content voices.");
-      }
-    });
-  }
-
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur">
       <div className="mx-auto max-w-3xl px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
@@ -391,9 +353,6 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
               type="button"
               size="icon"
               disabled={!text.trim() || pending}
-              onPointerDown={() => {
-                speechHandleRef.current = createSpeechHandle();
-              }}
               onClick={() => saveIdea(text)}
               className="h-auto"
             >
@@ -439,14 +398,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
             )}
           </button>
 
-          <button
-            type="button"
-            onClick={handleVoiceTest}
-            className="rounded-full border border-border/60 p-3 text-muted-foreground transition hover:text-foreground"
-            aria-label="Test voice"
-          >
-            <Headphones className="h-4 w-4" />
-          </button>
+          <div className="w-10" aria-hidden />
         </div>
 
         <p className="mt-2 text-center text-[11px] text-muted-foreground">
@@ -473,7 +425,6 @@ function IdeaDetail({
   const [editText, setEditText] = useState("");
   const [saving, setSaving] = useState(false);
   const [growing, setGrowing] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
 
   useEffect(() => {
     if (idea) setEditText(idea.transcript);
@@ -527,20 +478,6 @@ function IdeaDetail({
     else {
       onChanged();
       onClose();
-    }
-  }
-
-  async function handleSpeak() {
-    const speechHandle = createSpeechHandle();
-    setSpeaking(true);
-    try {
-      const result = await speak(idea!.transcript.slice(0, 600), speechHandle);
-      if (result.provider === "none") toast("No voice available on this device.");
-      else if (result.error) toast("Voice did not start. Check silent mode, volume, and Spoken Content voices.");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't speak that.");
-    } finally {
-      setSpeaking(false);
     }
   }
 
@@ -602,10 +539,6 @@ function IdeaDetail({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={handleSpeak} disabled={speaking}>
-            {speaking ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Volume2 className="mr-1 h-3 w-3" />}
-            Read aloud
-          </Button>
           {idea.status === "grow" && (
             <Button variant="outline" size="sm" onClick={handleGrow} disabled={growing}>
               {growing ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Sparkles className="mr-1 h-3 w-3" />}

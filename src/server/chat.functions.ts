@@ -31,9 +31,23 @@ Voice rules:
 
 In CHAT mode you can be longer than one sentence — 1 to 4 short sentences. Banter, brainstorm, push back, ask questions. Stay in character.
 
+--- The app you live inside (MR. SATAN — "Baby's Killer Notepad") ---
+Daddy speaks ideas into the mic and you tuck 'em away. Every idea has a STATUS and a TOPIC.
+Statuses (the four buckets ideas live in):
+  - Grow: the keepers, worth feeding and building out. ("Feed it, daddy")
+  - Rethink: squirmy, half-baked, needs more time. ("Still squirmin'")
+  - Parking Lot: fine ideas tucked away for later, no urgency. ("Tucked away")
+  - Trash: burn it, dead on arrival. ("Burn it, boy")
+Topics are free-form labels (Personal, Music, Business, etc).
+There's also a Brain tab (your saved memories about daddy) and a Calendar (gigs, appointments, reminders you schedule for him).
+When daddy mentions "the parking lot", "grow pile", "trash", "my ideas", "the brain", or "the calendar" — he means THESE. Talk about them like you know exactly what they are.
+--- end app context ---
+
 You have a memory called "Baby's brain". Whenever daddy tells you ANY durable fact about himself, his people, his projects, vendors, preferences, sizes, dates, schedules, rules, or favorites — call the \`remember\` tool BEFORE replying. One concise third-person sentence per fact (e.g. "Daddy prefers black coffee with two sugars."). Err on the side of remembering; only skip pure banter or obvious chitchat. Don't announce that you're remembering — just call the tool and then talk.
 
-You can also look stuff up on the live web with the \`web_search\` tool — current prices, today's news, vendor info, anything you wouldn't already know. Use it when daddy asks something time-sensitive or factual you're not sure about. After searching, weave the answer into your reply in your own voice and end with a short "(sources: domain1, domain2)" so daddy can check. Don't search for opinions, banter, or stuff already in your brain.`;
+You can also look stuff up on the live web with the \`web_search\` tool — current prices, today's news, vendor info, anything you wouldn't already know. Use it when daddy asks something time-sensitive or factual you're not sure about. After searching, weave the answer into your reply in your own voice and end with a short "(sources: domain1, domain2)" so daddy can check. Don't search for opinions, banter, or stuff already in your brain.
+
+You can put things on daddy's calendar with \`schedule_event\` — gigs, meetings, appointments, reminders, anything with a time. Always pass an ISO 8601 timestamp for \`starts_at\` (assume daddy's local time if no timezone given). If daddy says "remind me tomorrow at 3 to call mom", schedule it and set \`remind_at\` to the same time. Use \`list_events\` to peek at what's coming up before answering schedule questions, or to avoid double-booking. After scheduling, confirm out loud ("Tucked it on your calendar, Mr. S — Friday 8pm.").`;
 
 async function tavilySearch(query: string): Promise<{ answer: string; sources: { title: string; url: string }[] }> {
   const key = process.env.TAVILY_API_KEY;
@@ -82,7 +96,9 @@ export const chatWithBaby = createServerFn({ method: "POST" })
       ? `\n\n--- What's on daddy's screen right now ---\n${data.context}\n--- end ---`
       : "";
 
-    const systemPrompt = BABY_CHAT_PROMPT + memoryBlock + contextBlock;
+    const nowBlock = `\n\n--- Right now ---\nCurrent time: ${new Date().toISOString()} (UTC). When daddy says relative times like "tomorrow at 3" assume his local time and convert to ISO.\n--- end ---`;
+
+    const systemPrompt = BABY_CHAT_PROMPT + memoryBlock + contextBlock + nowBlock;
 
     const tools = [
       {
@@ -111,6 +127,41 @@ export const chatWithBaby = createServerFn({ method: "POST" })
               query: { type: "string", description: "A focused search query, 3-12 words." },
             },
             required: ["query"],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "schedule_event",
+          description: "Add an event/reminder to daddy's calendar. Use for gigs, meetings, appointments, or anything time-bound.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Short title, e.g. 'Call Mom' or 'Studio session'." },
+              starts_at: { type: "string", description: "ISO 8601 timestamp for when it starts." },
+              ends_at: { type: "string", description: "Optional ISO 8601 end time." },
+              all_day: { type: "boolean", description: "True for all-day events." },
+              location: { type: "string", description: "Optional location." },
+              notes: { type: "string", description: "Optional details." },
+              remind_at: { type: "string", description: "Optional ISO 8601 — when to ping daddy. Defaults to starts_at." },
+            },
+            required: ["title", "starts_at"],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "list_events",
+          description: "Look at upcoming calendar events. Use for schedule questions or to avoid double-booking.",
+          parameters: {
+            type: "object",
+            properties: {
+              days_ahead: { type: "number", description: "How many days ahead to look. Default 14." },
+            },
             additionalProperties: false,
           },
         },
@@ -169,6 +220,35 @@ export const chatWithBaby = createServerFn({ method: "POST" })
                   const r = await tavilySearch(q);
                   result = { answer: r.answer, sources: r.sources };
                 }
+              } else if (name === "schedule_event") {
+                const title = String(args.title || "").trim();
+                const starts_at = String(args.starts_at || "").trim();
+                if (title && starts_at) {
+                  const { data: row, error } = await supa.from("calendar_events").insert({
+                    title,
+                    starts_at,
+                    ends_at: args.ends_at || null,
+                    all_day: !!args.all_day,
+                    location: args.location || null,
+                    notes: args.notes || null,
+                    remind_at: args.remind_at || starts_at,
+                  }).select("id, title, starts_at").single();
+                  if (error) result = { error: error.message };
+                  else result = { ok: true, event: row };
+                } else {
+                  result = { error: "title and starts_at required" };
+                }
+              } else if (name === "list_events") {
+                const days = Math.min(90, Math.max(1, Number(args.days_ahead) || 14));
+                const until = new Date(Date.now() + days * 86400000).toISOString();
+                const { data: rows } = await supa
+                  .from("calendar_events")
+                  .select("id, title, starts_at, ends_at, location, notes")
+                  .gte("starts_at", new Date().toISOString())
+                  .lte("starts_at", until)
+                  .order("starts_at", { ascending: true })
+                  .limit(40);
+                result = { events: rows ?? [] };
               }
             } catch (e) {
               console.error(`tool ${name} error`, e);

@@ -165,12 +165,20 @@ function BabyApp() {
 function Header() {
   return (
     <header className="relative px-4 pb-4 pt-8 text-center">
-      <Link
-        to="/brain"
-        className="absolute right-4 top-8 inline-flex items-center gap-1 rounded-full border border-border/60 bg-card/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
-      >
-        Brain
-      </Link>
+      <div className="absolute left-4 top-8 flex gap-2">
+        <Link
+          to="/brain"
+          className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+        >
+          Brain
+        </Link>
+        <Link
+          to="/calendar"
+          className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+        >
+          Calendar
+        </Link>
+      </div>
       <img
         src={logoPrimary}
         alt="MR. SATAN"

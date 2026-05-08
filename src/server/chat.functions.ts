@@ -96,7 +96,9 @@ export const chatWithBaby = createServerFn({ method: "POST" })
       ? `\n\n--- What's on daddy's screen right now ---\n${data.context}\n--- end ---`
       : "";
 
-    const systemPrompt = BABY_CHAT_PROMPT + memoryBlock + contextBlock;
+    const nowBlock = `\n\n--- Right now ---\nCurrent time: ${new Date().toISOString()} (UTC). When daddy says relative times like "tomorrow at 3" assume his local time and convert to ISO.\n--- end ---`;
+
+    const systemPrompt = BABY_CHAT_PROMPT + memoryBlock + contextBlock + nowBlock;
 
     const tools = [
       {

@@ -306,7 +306,6 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
       onSaved();
       playSting(cls.status);
       pingBaby(cls.status, reply);
-      ransomToast(reply);
 
       setText("");
       setShowText(false);

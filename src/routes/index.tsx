@@ -11,6 +11,9 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { playSting } from "@/lib/stings";
+import { ransomToast } from "@/components/ransom-toast";
+import { BabyMood, pingBaby } from "@/components/baby-mood";
 import logoPrimary from "@/assets/brand/logo-primary.png";
 
 // Local QueryClient — index page is the whole app, no other routes use it yet.
@@ -97,6 +100,7 @@ function BabyApp() {
 
   return (
     <div className="min-h-screen pb-44">
+      <BabyMood />
       <Header />
 
       {/* Topic filters */}
@@ -276,6 +280,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
   async function saveIdea(transcript: string) {
     if (!transcript.trim()) return;
     setPending(true);
+    pingBaby("thinking", "");
     try {
       const cls = await classifyIdea({ data: { transcript } });
       const { error } = await supabase.from("ideas").insert({
@@ -287,12 +292,15 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
 
       const reply = cls.bernice_reply || "Tucked it away, daddy.";
       onSaved();
-      toast.success(reply);
+      playSting(cls.status);
+      pingBaby(cls.status, reply);
+      ransomToast(reply);
 
       setText("");
       setShowText(false);
     } catch (e) {
       console.error(e);
+      pingBaby("idle", "");
       toast.error(e instanceof Error ? e.message : "Baby chipped a nail. Try again, sugar britches.");
     } finally {
       setPending(false);

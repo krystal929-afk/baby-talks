@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { playSting } from "@/lib/stings";
 import { ransomToast } from "@/components/ransom-toast";
 import { BabyMood, pingBaby } from "@/components/baby-mood";
+import { BabyChatButton, BabyChatDrawer } from "@/components/baby-chat";
 import logoPrimary from "@/assets/brand/logo-primary.png";
 
 // Local QueryClient — index page is the whole app, no other routes use it yet.

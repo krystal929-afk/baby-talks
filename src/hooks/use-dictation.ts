@@ -75,17 +75,20 @@ export function useDictation() {
       startingRef.current = false;
       setListening(true);
     };
+    // iOS Safari quirk: results array is cumulative within a session and
+    // resultIndex isn't always reliable. Rebuild final + interim from the
+    // entire results array each event, then snapshot finals on session end.
+    let sessionFinal = "";
     rec.onresult = (e) => {
+      let finalText = "";
       let interimText = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
+      for (let i = 0; i < e.results.length; i++) {
         const r = e.results[i];
         const t = r[0].transcript;
-        if (r.isFinal) {
-          finalRef.current += t + " ";
-        } else {
-          interimText += t;
-        }
+        if (r.isFinal) finalText += t + " ";
+        else interimText += t;
       }
+      sessionFinal = finalText;
       setInterim(interimText);
     };
     rec.onerror = (e) => {

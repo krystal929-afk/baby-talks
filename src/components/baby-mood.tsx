@@ -49,7 +49,7 @@ export function BabyMood() {
   const f = FACES[mood];
 
   return (
-    <div className="pointer-events-none fixed right-3 top-3 z-30 flex max-w-[260px] flex-col items-end gap-2">
+    <div className="pointer-events-none fixed right-3 top-3 z-30 flex max-w-[320px] flex-col items-end gap-2">
       {shown && (
         <div className="rounded-2xl rounded-br-sm border border-border/60 bg-card/95 px-3 py-2 text-xs leading-snug text-foreground shadow-[var(--shadow-glow)] animate-fade-in">
           {shown}

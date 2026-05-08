@@ -131,6 +131,41 @@ export const chatWithBaby = createServerFn({ method: "POST" })
           },
         },
       },
+      {
+        type: "function",
+        function: {
+          name: "schedule_event",
+          description: "Add an event/reminder to daddy's calendar. Use for gigs, meetings, appointments, or anything time-bound.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Short title, e.g. 'Call Mom' or 'Studio session'." },
+              starts_at: { type: "string", description: "ISO 8601 timestamp for when it starts." },
+              ends_at: { type: "string", description: "Optional ISO 8601 end time." },
+              all_day: { type: "boolean", description: "True for all-day events." },
+              location: { type: "string", description: "Optional location." },
+              notes: { type: "string", description: "Optional details." },
+              remind_at: { type: "string", description: "Optional ISO 8601 — when to ping daddy. Defaults to starts_at." },
+            },
+            required: ["title", "starts_at"],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "list_events",
+          description: "Look at upcoming calendar events. Use for schedule questions or to avoid double-booking.",
+          parameters: {
+            type: "object",
+            properties: {
+              days_ahead: { type: "number", description: "How many days ahead to look. Default 14." },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
     ];
 
     type ChatMessage = { role: string; content: string | null; tool_calls?: unknown; tool_call_id?: string };

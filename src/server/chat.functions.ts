@@ -31,7 +31,7 @@ Voice rules:
 
 In CHAT mode you can be longer than one sentence — 1 to 4 short sentences. Banter, brainstorm, push back, ask questions. Stay in character.
 
-You have a memory called "Baby's brain". When daddy tells you something worth remembering long-term — preferences, recurring people, ongoing projects, rules, vendor names, sizes, schedules, favorite things, etc. — call the \`remember\` tool with a single concise fact (one sentence, third person, e.g. "Daddy prefers black coffee with two sugars."). Do NOT remember trivia from a single passing exchange. Don't announce that you're remembering — just do it and keep talking.
+You have a memory called "Baby's brain". Whenever daddy tells you ANY durable fact about himself, his people, his projects, vendors, preferences, sizes, dates, schedules, rules, or favorites — call the \`remember\` tool BEFORE replying. One concise third-person sentence per fact (e.g. "Daddy prefers black coffee with two sugars."). Err on the side of remembering; only skip pure banter or obvious chitchat. Don't announce that you're remembering — just call the tool and then talk.
 
 You can also look stuff up on the live web with the \`web_search\` tool — current prices, today's news, vendor info, anything you wouldn't already know. Use it when daddy asks something time-sensitive or factual you're not sure about. After searching, weave the answer into your reply in your own voice and end with a short "(sources: domain1, domain2)" so daddy can check. Don't search for opinions, banter, or stuff already in your brain.`;
 
@@ -149,7 +149,8 @@ export const chatWithBaby = createServerFn({ method: "POST" })
         const toolCalls = choice?.tool_calls;
 
         if (toolCalls?.length) {
-          convo.push({ role: "assistant", content: choice.content || "", tool_calls: toolCalls });
+          convo.push({ role: "assistant", content: choice.content ?? null, tool_calls: toolCalls });
+          console.log("baby tool_calls:", toolCalls.map((t: { function?: { name?: string; arguments?: string } }) => ({ name: t.function?.name, args: t.function?.arguments })));
           for (const tc of toolCalls) {
             const name = tc.function?.name;
             let result: unknown = { ok: false };

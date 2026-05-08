@@ -84,87 +84,105 @@ export const chatWithBaby = createServerFn({ method: "POST" })
 
     const systemPrompt = BABY_CHAT_PROMPT + memoryBlock + contextBlock;
 
-    try {
-      const res = await fetch(LOVABLE_AI_URL, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-lite",
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...data.messages,
-          ],
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: "remember",
-                description: "Save a long-term fact about daddy to Baby's brain. Use sparingly — only for things worth remembering forever.",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    fact: { type: "string", maxLength: 280, description: "One concise sentence stating the fact." },
-                  },
-                  required: ["fact"],
-                  additionalProperties: false,
-                },
-              },
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "remember",
+          description: "Save a long-term fact about daddy to Baby's brain. Use sparingly — only for things worth remembering forever.",
+          parameters: {
+            type: "object",
+            properties: {
+              fact: { type: "string", maxLength: 280, description: "One concise sentence stating the fact." },
             },
-          ],
-        }),
-      });
+            required: ["fact"],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "web_search",
+          description: "Search the live web for current/factual info Baby doesn't already know. Returns a summary answer plus source URLs.",
+          parameters: {
+            type: "object",
+            properties: {
+              query: { type: "string", description: "A focused search query, 3-12 words." },
+            },
+            required: ["query"],
+            additionalProperties: false,
+          },
+        },
+      },
+    ];
 
-      if (!res.ok) {
-        if (res.status === 429) throw new Error("Slow down, daddy — too many at once.");
-        if (res.status === 402) throw new Error("Outta AI credits, sugar britches.");
-        const t = await res.text();
-        console.error("chat gateway error", res.status, t);
-        throw new Error(`AI gateway error ${res.status}`);
-      }
+    type ChatMessage = { role: string; content: string | null; tool_calls?: unknown; tool_call_id?: string };
+    const convo: ChatMessage[] = [
+      { role: "system", content: systemPrompt },
+      ...data.messages.map((m) => ({ role: m.role, content: m.content })),
+    ];
+    let savedMemory: string | null = null;
 
-      const json = await res.json();
-      const choice = json.choices?.[0]?.message;
-      let savedMemory: string | null = null;
-
-      // If she called the remember tool, persist it and follow up for the actual reply.
-      const toolCall = choice?.tool_calls?.[0];
-      if (toolCall?.function?.name === "remember") {
-        try {
-          const args = JSON.parse(toolCall.function.arguments);
-          const fact = String(args.fact || "").trim();
-          if (fact) {
-            await supa.from("baby_memories").insert({ content: fact, source: "auto" });
-            savedMemory = fact;
-          }
-        } catch (e) {
-          console.error("remember tool parse error", e);
-        }
-
-        // Second turn: feed the tool result back so Baby actually replies.
-        const followup = await fetch(LOVABLE_AI_URL, {
+    try {
+      for (let turn = 0; turn < 4; turn++) {
+        const res = await fetch(LOVABLE_AI_URL, {
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash-lite",
-            messages: [
-              { role: "system", content: systemPrompt },
-              ...data.messages,
-              { role: "assistant", content: choice.content || "", tool_calls: choice.tool_calls },
-              { role: "tool", tool_call_id: toolCall.id, content: JSON.stringify({ ok: true }) },
-            ],
+            model: "google/gemini-2.5-flash",
+            messages: convo,
+            tools,
           }),
         });
-        if (followup.ok) {
-          const fjson = await followup.json();
-          const reply = fjson.choices?.[0]?.message?.content?.trim();
-          if (reply) return { reply, saved_memory: savedMemory };
-        }
-        return { reply: "Tucked that one in my brain, daddy. Now what?", saved_memory: savedMemory };
-      }
 
-      const reply = choice?.content?.trim();
-      if (!reply) throw new Error("Empty reply");
-      return { reply, saved_memory: null };
+        if (!res.ok) {
+          if (res.status === 429) throw new Error("Slow down, daddy — too many at once.");
+          if (res.status === 402) throw new Error("Outta AI credits, sugar britches.");
+          const t = await res.text();
+          console.error("chat gateway error", res.status, t);
+          throw new Error(`AI gateway error ${res.status}`);
+        }
+
+        const json = await res.json();
+        const choice = json.choices?.[0]?.message;
+        const toolCalls = choice?.tool_calls;
+
+        if (toolCalls?.length) {
+          convo.push({ role: "assistant", content: choice.content || "", tool_calls: toolCalls });
+          for (const tc of toolCalls) {
+            const name = tc.function?.name;
+            let result: unknown = { ok: false };
+            try {
+              const args = JSON.parse(tc.function.arguments || "{}");
+              if (name === "remember") {
+                const fact = String(args.fact || "").trim();
+                if (fact) {
+                  await supa.from("baby_memories").insert({ content: fact, source: "auto" });
+                  savedMemory = fact;
+                  result = { ok: true };
+                }
+              } else if (name === "web_search") {
+                const q = String(args.query || "").trim();
+                if (q) {
+                  const r = await tavilySearch(q);
+                  result = { answer: r.answer, sources: r.sources };
+                }
+              }
+            } catch (e) {
+              console.error(`tool ${name} error`, e);
+              result = { error: e instanceof Error ? e.message : "tool failed" };
+            }
+            convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });
+          }
+          continue;
+        }
+
+        const reply = choice?.content?.trim();
+        if (!reply) throw new Error("Empty reply");
+        return { reply, saved_memory: savedMemory };
+      }
+      return { reply: "Got tangled up, daddy — try again.", saved_memory: savedMemory };
     } catch (e) {
       console.error("chatWithBaby failed:", e);
       throw e instanceof Error ? e : new Error("Baby's stuck, daddy.");

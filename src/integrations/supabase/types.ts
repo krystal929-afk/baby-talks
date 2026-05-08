@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      baby_memories: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ideas: {
         Row: {
           created_at: string

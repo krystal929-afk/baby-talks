@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { playSting } from "@/lib/stings";
 import { ransomToast } from "@/components/ransom-toast";
 import { BabyMood, pingBaby } from "@/components/baby-mood";
+import { BabyChatButton, BabyChatDrawer } from "@/components/baby-chat";
 import logoPrimary from "@/assets/brand/logo-primary.png";
 
 // Local QueryClient — index page is the whole app, no other routes use it yet.
@@ -72,6 +73,7 @@ function BabyApp() {
   const queryClient = useQueryClient();
   const [openIdea, setOpenIdea] = useState<Idea | null>(null);
   const [topicFilter, setTopicFilter] = useState<string>("all");
+  const [chatOpen, setChatOpen] = useState(false);
 
   const { data: ideas = [], isLoading } = useQuery({
     queryKey: ["ideas"],
@@ -145,6 +147,17 @@ function BabyApp() {
         onChanged={() => {
           refresh();
         }}
+      />
+
+      <BabyChatButton onClick={() => setChatOpen(true)} />
+      <BabyChatDrawer
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        context={
+          openIdea
+            ? `Daddy is looking at this idea (status: ${openIdea.status}, topic: ${openIdea.topic}):\n${openIdea.transcript}`
+            : undefined
+        }
       />
     </div>
   );

@@ -100,8 +100,12 @@ export function useDictation() {
     };
     rec.onend = () => {
       startingRef.current = false;
+      // Commit this session's finalized text before potential restart
+      if (sessionFinal) {
+        finalRef.current += sessionFinal;
+        sessionFinal = "";
+      }
       // Auto-restart if user is still holding the mic and engine ended early
-      // (Chrome/iOS will close the stream after silence even with continuous=true).
       if (wantListeningRef.current) {
         try {
           rec.start();

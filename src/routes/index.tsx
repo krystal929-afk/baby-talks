@@ -73,6 +73,7 @@ function BabyApp() {
   const queryClient = useQueryClient();
   const [openIdea, setOpenIdea] = useState<Idea | null>(null);
   const [topicFilter, setTopicFilter] = useState<string>("all");
+  const [chatOpen, setChatOpen] = useState(false);
 
   const { data: ideas = [], isLoading } = useQuery({
     queryKey: ["ideas"],
@@ -146,6 +147,17 @@ function BabyApp() {
         onChanged={() => {
           refresh();
         }}
+      />
+
+      <BabyChatButton onClick={() => setChatOpen(true)} />
+      <BabyChatDrawer
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        context={
+          openIdea
+            ? `Daddy is looking at this idea (status: ${openIdea.status}, topic: ${openIdea.topic}):\n${openIdea.transcript}`
+            : undefined
+        }
       />
     </div>
   );

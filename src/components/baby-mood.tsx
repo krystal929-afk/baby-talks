@@ -41,7 +41,8 @@ export function BabyMood() {
       setShown(msg.slice(0, i));
       if (i >= msg.length) clearInterval(tick);
     }, 38);
-    const clearId = setTimeout(() => setMsg(""), 5000);
+    const dwell = Math.min(14000, Math.max(4500, msg.length * 70));
+    const clearId = setTimeout(() => setMsg(""), msg.length * 38 + dwell);
     return () => { clearInterval(tick); clearTimeout(clearId); };
   }, [msg]);
 

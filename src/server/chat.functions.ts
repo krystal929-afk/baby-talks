@@ -149,7 +149,8 @@ export const chatWithBaby = createServerFn({ method: "POST" })
         const toolCalls = choice?.tool_calls;
 
         if (toolCalls?.length) {
-          convo.push({ role: "assistant", content: choice.content || "", tool_calls: toolCalls });
+          convo.push({ role: "assistant", content: choice.content ?? null, tool_calls: toolCalls });
+          console.log("baby tool_calls:", toolCalls.map((t: { function?: { name?: string; arguments?: string } }) => ({ name: t.function?.name, args: t.function?.arguments })));
           for (const tc of toolCalls) {
             const name = tc.function?.name;
             let result: unknown = { ok: false };

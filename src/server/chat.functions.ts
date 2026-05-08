@@ -220,6 +220,35 @@ export const chatWithBaby = createServerFn({ method: "POST" })
                   const r = await tavilySearch(q);
                   result = { answer: r.answer, sources: r.sources };
                 }
+              } else if (name === "schedule_event") {
+                const title = String(args.title || "").trim();
+                const starts_at = String(args.starts_at || "").trim();
+                if (title && starts_at) {
+                  const { data: row, error } = await supa.from("calendar_events").insert({
+                    title,
+                    starts_at,
+                    ends_at: args.ends_at || null,
+                    all_day: !!args.all_day,
+                    location: args.location || null,
+                    notes: args.notes || null,
+                    remind_at: args.remind_at || starts_at,
+                  }).select("id, title, starts_at").single();
+                  if (error) result = { error: error.message };
+                  else result = { ok: true, event: row };
+                } else {
+                  result = { error: "title and starts_at required" };
+                }
+              } else if (name === "list_events") {
+                const days = Math.min(90, Math.max(1, Number(args.days_ahead) || 14));
+                const until = new Date(Date.now() + days * 86400000).toISOString();
+                const { data: rows } = await supa
+                  .from("calendar_events")
+                  .select("id, title, starts_at, ends_at, location, notes")
+                  .gte("starts_at", new Date().toISOString())
+                  .lte("starts_at", until)
+                  .order("starts_at", { ascending: true })
+                  .limit(40);
+                result = { events: rows ?? [] };
               }
             } catch (e) {
               console.error(`tool ${name} error`, e);

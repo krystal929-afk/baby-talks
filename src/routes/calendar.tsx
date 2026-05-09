@@ -7,7 +7,7 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { ArrowLeft, CalendarPlus, Loader2, MapPin, Bell, Trash2, Clock } from "lucide-react";
+import { ArrowLeft, CalendarPlus, Loader2, MapPin, Bell, Trash2, Clock, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";

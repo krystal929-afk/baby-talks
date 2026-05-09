@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Mic, Square, Loader2, Trash2, Sparkles, X, Plus, Send, CalendarDays, Brain } from "lucide-react";
+import { Mic, Square, Loader2, Trash2, Sparkles, X, Plus, Send, CalendarDays, Brain, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { playSting } from "@/lib/stings";
 import { BabyMood, pingBaby } from "@/components/baby-mood";
 import { BabyChatButton, BabyChatDrawer } from "@/components/baby-chat";
+import { signOut } from "@/components/auth-gate";
 import logoPrimary from "@/assets/brand/logo-primary.png";
 
 // Local QueryClient — index page is the whole app, no other routes use it yet.
@@ -166,6 +167,14 @@ function BabyApp() {
 function Header() {
   return (
     <header className="relative px-4 pb-4 pt-8 text-center">
+      <button
+        type="button"
+        onClick={() => signOut()}
+        aria-label="Sign out"
+        className="absolute right-4 top-4 rounded-full border border-border/60 p-2 text-muted-foreground transition hover:border-primary/60 hover:text-foreground"
+      >
+        <LogOut className="h-4 w-4" />
+      </button>
       <img
         src={logoPrimary}
         alt="MR. SATAN"

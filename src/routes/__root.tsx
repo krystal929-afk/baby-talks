@@ -1,5 +1,6 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
+import { ReminderWatcher } from "@/components/reminder-watcher";
 
 import appCss from "../styles.css?url";
 
@@ -74,6 +75,7 @@ function RootComponent() {
   return (
     <>
       <Outlet />
+      <ReminderWatcher />
       <Toaster theme="dark" position="top-center" />
     </>
   );

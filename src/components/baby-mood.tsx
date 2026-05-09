@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { BabyBubble } from "@/components/baby-bubble";
 
 export type Mood = "idle" | "grow" | "rethink" | "parking_lot" | "trash" | "thinking";
 

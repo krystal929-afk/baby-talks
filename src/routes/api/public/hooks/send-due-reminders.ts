@@ -103,8 +103,8 @@ async function run(request: Request) {
 export const Route = createFileRoute("/api/public/hooks/send-due-reminders")({
   server: {
     handlers: {
-      GET: async () => run(),
-      POST: async () => run(),
+      GET: async ({ request }) => run(request),
+      POST: async ({ request }) => run(request),
     },
   },
 });

@@ -196,6 +196,37 @@ function Header() {
   );
 }
 
+function QuickTiles() {
+  return (
+    <div className="mx-auto mb-2 grid max-w-3xl grid-cols-2 gap-3 px-4">
+      <Link
+        to="/calendar"
+        className="group flex items-center gap-3 rounded-2xl border border-border/60 bg-card/70 p-4 transition hover:border-primary/60 hover:bg-card"
+      >
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+          <CalendarDays className="h-5 w-5" />
+        </div>
+        <div>
+          <div className="font-display text-base text-foreground">Calendar</div>
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Gigs &amp; reminders</div>
+        </div>
+      </Link>
+      <Link
+        to="/brain"
+        className="group flex items-center gap-3 rounded-2xl border border-border/60 bg-card/70 p-4 transition hover:border-primary/60 hover:bg-card"
+      >
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-accent">
+          <Brain className="h-5 w-5" />
+        </div>
+        <div>
+          <div className="font-display text-base text-foreground">Brain</div>
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">What Baby remembers</div>
+        </div>
+      </Link>
+    </div>
+  );
+}
+
 function FilterChip({
   children,
   active,

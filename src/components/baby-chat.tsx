@@ -52,6 +52,34 @@ export function BabyChatDrawer({ open, onOpenChange, context }: Props) {
   );
 }
 
+function BabyBubble({ text, animate }: { text: string; animate: boolean }) {
+  const [shown, setShown] = useState(animate ? "" : text);
+  useEffect(() => {
+    if (!animate) { setShown(text); return; }
+    setShown("");
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      setShown(text.slice(0, i));
+      if (i >= text.length) clearInterval(id);
+    }, 22);
+    return () => clearInterval(id);
+  }, [text, animate]);
+  const done = shown.length >= text.length;
+  return (
+    <div className="mr-auto max-w-[90%] relative">
+      <div
+        className="rounded-2xl rounded-bl-sm border border-primary/40 bg-card/90 px-4 py-3 text-base leading-relaxed whitespace-pre-wrap text-foreground shadow-[var(--shadow-glow)]"
+        style={{ transform: "rotate(-0.4deg)" }}
+      >
+        <span className="font-display tracking-wider text-[10px] uppercase text-primary/80 mr-2">Baby</span>
+        {shown}
+        {!done && <span className="ml-0.5 inline-block animate-pulse text-primary">▍</span>}
+      </div>
+    </div>
+  );
+}
+
 function ChatPane({ context }: { context?: string }) {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
@@ -90,19 +118,26 @@ function ChatPane({ context }: { context?: string }) {
             Banter with Baby. She remembers things you tell her — check her brain anytime.
           </p>
         )}
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            className={cn(
-              "max-w-[88%] rounded-2xl px-4 py-3 text-base leading-relaxed whitespace-pre-wrap",
-              m.role === "user"
-                ? "ml-auto bg-primary text-primary-foreground"
-                : "mr-auto bg-secondary text-secondary-foreground",
-            )}
-          >
-            {m.content}
-          </div>
-        ))}
+        {messages.map((m, i) => {
+          if (m.role === "user") {
+            return (
+              <div
+                key={i}
+                className="ml-auto max-w-[88%] rounded-2xl rounded-br-sm bg-primary text-primary-foreground px-4 py-3 text-base leading-relaxed whitespace-pre-wrap"
+              >
+                {m.content}
+              </div>
+            );
+          }
+          const isLast = i === messages.length - 1;
+          return (
+            <BabyBubble
+              key={i}
+              text={m.content}
+              animate={isLast && !send.isPending}
+            />
+          );
+        })}
         {send.isPending && (
           <div className="mr-auto flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-3 animate-spin" /> Baby's thinkin'…

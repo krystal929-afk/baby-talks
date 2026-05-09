@@ -99,11 +99,36 @@ function CalendarPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4">
-        <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <PushToggle />
-          <Button onClick={() => setShowAdd(true)} size="sm" className="gap-2">
-            <CalendarPlus className="h-4 w-4" /> Add event
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={async () => {
+                const now = new Date();
+                const remindAt = new Date(now.getTime() + 90_000);
+                const startsAt = new Date(now.getTime() + 5 * 60_000);
+                const { error } = await supabase.from("calendar_events").insert({
+                  title: "Baby's test ping",
+                  starts_at: startsAt.toISOString(),
+                  remind_at: remindAt.toISOString(),
+                  notes: "Just makin' sure I can buzz ya, daddy.",
+                });
+                if (error) toast.error(error.message);
+                else {
+                  toast.success("Test ping armed — Baby'll buzz in ~90 seconds.");
+                  refresh();
+                }
+              }}
+              size="sm"
+              variant="outline"
+              className="gap-2"
+            >
+              <Zap className="h-4 w-4" /> Test ping
+            </Button>
+            <Button onClick={() => setShowAdd(true)} size="sm" className="gap-2">
+              <CalendarPlus className="h-4 w-4" /> Add event
+            </Button>
+          </div>
         </div>
 
         <div className="mb-6 rounded-2xl border border-border/60 bg-card/60 p-2 sm:p-4">

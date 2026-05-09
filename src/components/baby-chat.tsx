@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { chatWithBaby, type ChatMsg } from "@/server/chat.functions";
+import { BabyBubble } from "@/components/baby-bubble";
 import {
   addMemory,
   deleteMemory,

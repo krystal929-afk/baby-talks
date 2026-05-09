@@ -94,7 +94,7 @@ function ChatPane({ context }: { context?: string }) {
           <div
             key={i}
             className={cn(
-              "max-w-[85%] rounded-lg px-3 py-2 text-sm leading-snug whitespace-pre-wrap",
+              "max-w-[88%] rounded-2xl px-4 py-3 text-base leading-relaxed whitespace-pre-wrap",
               m.role === "user"
                 ? "ml-auto bg-primary text-primary-foreground"
                 : "mr-auto bg-secondary text-secondary-foreground",

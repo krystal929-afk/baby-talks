@@ -74,10 +74,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   return (
-    <>
+    <AuthGate>
       <Outlet />
       <ReminderWatcher />
       <Toaster theme="dark" position="top-center" />
-    </>
+    </AuthGate>
   );
 }

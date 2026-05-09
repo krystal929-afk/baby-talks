@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar as MonthCalendar } from "@/components/ui/calendar";
 import logoPrimary from "@/assets/brand/logo-primary.png";
 
 const qc = new QueryClient();
@@ -44,9 +45,14 @@ type Event = {
   remind_at: string | null;
 };
 
+function sameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
 function CalendarPage() {
   const queryClient = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["events"],
@@ -97,6 +103,40 @@ function CalendarPage() {
             <CalendarPlus className="h-4 w-4" /> Add event
           </Button>
         </div>
+
+        <div className="mb-6 rounded-2xl border border-border/60 bg-card/60 p-2 sm:p-4">
+          <MonthCalendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={setSelectedDate}
+            modifiers={{
+              hasEvent: events.map((e) => new Date(e.starts_at)),
+            }}
+            modifiersClassNames={{
+              hasEvent: "relative after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-primary",
+            }}
+            className="mx-auto"
+          />
+        </div>
+
+        {selectedDate && (
+          <Section
+            title={selectedDate.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+            tagline="On this day"
+          >
+            {(() => {
+              const dayEvents = events.filter((e) => sameDay(new Date(e.starts_at), selectedDate));
+              if (dayEvents.length === 0) {
+                return (
+                  <div className="rounded-xl border border-border/60 bg-card/40 p-4 text-sm text-muted-foreground">
+                    Nothin' on this day, daddy.
+                  </div>
+                );
+              }
+              return dayEvents.map((e) => <EventCard key={e.id} event={e} onChanged={refresh} />);
+            })()}
+          </Section>
+        )}
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20 text-muted-foreground">

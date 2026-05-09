@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar as MonthCalendar } from "@/components/ui/calendar";
 import logoPrimary from "@/assets/brand/logo-primary.png";
+import { PushToggle } from "@/components/push-toggle";
 
 const qc = new QueryClient();
 
@@ -98,7 +99,8 @@ function CalendarPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4">
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <PushToggle />
           <Button onClick={() => setShowAdd(true)} size="sm" className="gap-2">
             <CalendarPlus className="h-4 w-4" /> Add event
           </Button>

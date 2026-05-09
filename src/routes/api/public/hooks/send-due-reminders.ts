@@ -11,7 +11,17 @@ const BABY_LINES = [
   "Baby's reminding ya:",
 ];
 
-async function run() {
+async function run(request: Request) {
+  // Auth: require shared secret header so randos can't trigger pushes / mark events reminded
+  const expected = process.env.CRON_SECRET;
+  const provided = request.headers.get("x-cron-secret");
+  if (!expected || provided !== expected) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const priv = process.env.VAPID_PRIVATE_KEY;
   if (!priv) {
     return new Response(JSON.stringify({ error: "VAPID_PRIVATE_KEY not configured" }), {

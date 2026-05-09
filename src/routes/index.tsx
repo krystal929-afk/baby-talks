@@ -103,6 +103,7 @@ function BabyApp() {
     <div className="min-h-screen pb-44">
       <BabyMood />
       <Header />
+      <QuickTiles />
 
       {/* Topic filters */}
       <div className="sticky top-0 z-10 -mt-px border-b border-border/40 bg-background/85 px-4 py-3 backdrop-blur">

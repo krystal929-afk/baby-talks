@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { chatWithBaby, type ChatMsg } from "@/server/chat.functions";
+import { BabyBubble } from "@/components/baby-bubble";
 import {
   addMemory,
   deleteMemory,
@@ -49,34 +50,6 @@ export function BabyChatDrawer({ open, onOpenChange, context }: Props) {
         </Tabs>
       </SheetContent>
     </Sheet>
-  );
-}
-
-function BabyBubble({ text, animate }: { text: string; animate: boolean }) {
-  const [shown, setShown] = useState(animate ? "" : text);
-  useEffect(() => {
-    if (!animate) { setShown(text); return; }
-    setShown("");
-    let i = 0;
-    const id = setInterval(() => {
-      i++;
-      setShown(text.slice(0, i));
-      if (i >= text.length) clearInterval(id);
-    }, 22);
-    return () => clearInterval(id);
-  }, [text, animate]);
-  const done = shown.length >= text.length;
-  return (
-    <div className="mr-auto max-w-[90%] relative">
-      <div
-        className="rounded-2xl rounded-bl-sm border border-primary/40 bg-card/90 px-4 py-3 text-base leading-relaxed whitespace-pre-wrap text-foreground shadow-[var(--shadow-glow)]"
-        style={{ transform: "rotate(-0.4deg)" }}
-      >
-        <span className="font-display tracking-wider text-[10px] uppercase text-primary/80 mr-2">Baby</span>
-        {shown}
-        {!done && <span className="ml-0.5 inline-block animate-pulse text-primary">▍</span>}
-      </div>
-    </div>
   );
 }
 
@@ -131,11 +104,9 @@ function ChatPane({ context }: { context?: string }) {
           }
           const isLast = i === messages.length - 1;
           return (
-            <BabyBubble
-              key={i}
-              text={m.content}
-              animate={isLast && !send.isPending}
-            />
+            <div key={i} className="mr-auto max-w-[90%]">
+              <BabyBubble text={m.content} animate={isLast && !send.isPending} />
+            </div>
           );
         })}
         {send.isPending && (

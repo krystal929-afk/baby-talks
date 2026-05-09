@@ -104,11 +104,9 @@ function ChatPane({ context }: { context?: string }) {
           }
           const isLast = i === messages.length - 1;
           return (
-            <BabyBubble
-              key={i}
-              text={m.content}
-              animate={isLast && !send.isPending}
-            />
+            <div key={i} className="mr-auto max-w-[90%]">
+              <BabyBubble text={m.content} animate={isLast && !send.isPending} />
+            </div>
           );
         })}
         {send.isPending && (

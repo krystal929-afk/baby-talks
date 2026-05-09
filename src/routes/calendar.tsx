@@ -45,9 +45,14 @@ type Event = {
   remind_at: string | null;
 };
 
+function sameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
 function CalendarPage() {
   const queryClient = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["events"],

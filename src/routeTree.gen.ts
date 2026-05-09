@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as BrainRouteImport } from './routes/brain'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicHooksSendDueRemindersRouteImport } from './routes/api/public/hooks/send-due-reminders'
 
 const CalendarRoute = CalendarRouteImport.update({
   id: '/calendar',
@@ -28,35 +29,54 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksSendDueRemindersRoute =
+  ApiPublicHooksSendDueRemindersRouteImport.update({
+    id: '/api/public/hooks/send-due-reminders',
+    path: '/api/public/hooks/send-due-reminders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/brain': typeof BrainRoute
   '/calendar': typeof CalendarRoute
+  '/api/public/hooks/send-due-reminders': typeof ApiPublicHooksSendDueRemindersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/brain': typeof BrainRoute
   '/calendar': typeof CalendarRoute
+  '/api/public/hooks/send-due-reminders': typeof ApiPublicHooksSendDueRemindersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/brain': typeof BrainRoute
   '/calendar': typeof CalendarRoute
+  '/api/public/hooks/send-due-reminders': typeof ApiPublicHooksSendDueRemindersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/brain' | '/calendar'
+  fullPaths:
+    | '/'
+    | '/brain'
+    | '/calendar'
+    | '/api/public/hooks/send-due-reminders'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/brain' | '/calendar'
-  id: '__root__' | '/' | '/brain' | '/calendar'
+  to: '/' | '/brain' | '/calendar' | '/api/public/hooks/send-due-reminders'
+  id:
+    | '__root__'
+    | '/'
+    | '/brain'
+    | '/calendar'
+    | '/api/public/hooks/send-due-reminders'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BrainRoute: typeof BrainRoute
   CalendarRoute: typeof CalendarRoute
+  ApiPublicHooksSendDueRemindersRoute: typeof ApiPublicHooksSendDueRemindersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +102,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/send-due-reminders': {
+      id: '/api/public/hooks/send-due-reminders'
+      path: '/api/public/hooks/send-due-reminders'
+      fullPath: '/api/public/hooks/send-due-reminders'
+      preLoaderRoute: typeof ApiPublicHooksSendDueRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,16 +116,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BrainRoute: BrainRoute,
   CalendarRoute: CalendarRoute,
+  ApiPublicHooksSendDueRemindersRoute: ApiPublicHooksSendDueRemindersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

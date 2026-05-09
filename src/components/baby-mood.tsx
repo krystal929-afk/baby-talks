@@ -23,7 +23,6 @@ export function pingBaby(mood: Mood, msg?: string) {
 export function BabyMood() {
   const [mood, setMood] = useState<Mood>("idle");
   const [msg, setMsg] = useState<string>("");
-  const [shown, setShown] = useState<string>("");
 
   useEffect(() => {
     setterRef = (m, text) => {
@@ -34,29 +33,18 @@ export function BabyMood() {
   }, []);
 
   useEffect(() => {
-    if (!msg) { setShown(""); return; }
-    setShown("");
-    let i = 0;
-    const tick = setInterval(() => {
-      i++;
-      setShown(msg.slice(0, i));
-      if (i >= msg.length) clearInterval(tick);
-    }, 38);
+    if (!msg) return;
     const dwell = Math.min(14000, Math.max(4500, msg.length * 70));
-    const clearId = setTimeout(() => setMsg(""), msg.length * 38 + dwell);
-    return () => { clearInterval(tick); clearTimeout(clearId); };
+    const total = msg.length * 38 + dwell;
+    const clearId = setTimeout(() => setMsg(""), total);
+    return () => clearTimeout(clearId);
   }, [msg]);
 
   const f = FACES[mood];
 
   return (
     <div className="pointer-events-none fixed right-3 top-3 z-30 flex max-w-[320px] flex-col items-end gap-2">
-      {shown && (
-        <div className="rounded-2xl rounded-br-sm border border-border/60 bg-card/95 px-3 py-2 text-xs leading-snug text-foreground shadow-[var(--shadow-glow)] animate-fade-in">
-          {shown}
-          <span className="ml-0.5 inline-block animate-pulse">▍</span>
-        </div>
-      )}
+      {msg && <BabyBubble text={msg} size="sm" intervalMs={38} /> }
       <div
         className={cn(
           "flex h-11 w-11 items-center justify-center rounded-full border bg-card/80 font-display text-[13px] tracking-wider backdrop-blur transition",

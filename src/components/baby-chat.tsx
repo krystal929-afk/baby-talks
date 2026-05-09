@@ -90,19 +90,26 @@ function ChatPane({ context }: { context?: string }) {
             Banter with Baby. She remembers things you tell her — check her brain anytime.
           </p>
         )}
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            className={cn(
-              "max-w-[88%] rounded-2xl px-4 py-3 text-base leading-relaxed whitespace-pre-wrap",
-              m.role === "user"
-                ? "ml-auto bg-primary text-primary-foreground"
-                : "mr-auto bg-secondary text-secondary-foreground",
-            )}
-          >
-            {m.content}
-          </div>
-        ))}
+        {messages.map((m, i) => {
+          if (m.role === "user") {
+            return (
+              <div
+                key={i}
+                className="ml-auto max-w-[88%] rounded-2xl rounded-br-sm bg-primary text-primary-foreground px-4 py-3 text-base leading-relaxed whitespace-pre-wrap"
+              >
+                {m.content}
+              </div>
+            );
+          }
+          const isLast = i === messages.length - 1;
+          return (
+            <BabyBubble
+              key={i}
+              text={m.content}
+              animate={isLast && !send.isPending}
+            />
+          );
+        })}
         {send.isPending && (
           <div className="mr-auto flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-3 animate-spin" /> Baby's thinkin'…

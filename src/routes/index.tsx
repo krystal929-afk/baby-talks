@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Mic, Square, Loader2, Trash2, Sparkles, X, Plus, Send } from "lucide-react";
+import { Mic, Square, Loader2, Trash2, Sparkles, X, Plus, Send, CalendarDays, Brain } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -103,6 +103,7 @@ function BabyApp() {
     <div className="min-h-screen pb-44">
       <BabyMood />
       <Header />
+      <QuickTiles />
 
       {/* Topic filters */}
       <div className="sticky top-0 z-10 -mt-px border-b border-border/40 bg-background/85 px-4 py-3 backdrop-blur">
@@ -192,6 +193,37 @@ function Header() {
         Hold the mic. Spill it, daddy. Baby&apos;ll tuck it away for ya.
       </p>
     </header>
+  );
+}
+
+function QuickTiles() {
+  return (
+    <div className="mx-auto mb-2 grid max-w-3xl grid-cols-2 gap-3 px-4">
+      <Link
+        to="/calendar"
+        className="group flex items-center gap-3 rounded-2xl border border-border/60 bg-card/70 p-4 transition hover:border-primary/60 hover:bg-card"
+      >
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+          <CalendarDays className="h-5 w-5" />
+        </div>
+        <div>
+          <div className="font-display text-base text-foreground">Calendar</div>
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Gigs &amp; reminders</div>
+        </div>
+      </Link>
+      <Link
+        to="/brain"
+        className="group flex items-center gap-3 rounded-2xl border border-border/60 bg-card/70 p-4 transition hover:border-primary/60 hover:bg-card"
+      >
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-accent">
+          <Brain className="h-5 w-5" />
+        </div>
+        <div>
+          <div className="font-display text-base text-foreground">Brain</div>
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">What Baby remembers</div>
+        </div>
+      </Link>
+    </div>
   );
 }
 

@@ -114,16 +114,8 @@ function LoginScreen() {
 
         <Button type="submit" disabled={busy} className="w-full gap-2">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
-          {mode === "signin" ? "Sign in" : "Create account"}
+          Sign in
         </Button>
-
-        <button
-          type="button"
-          onClick={() => setMode((m) => (m === "signin" ? "signup" : "signin"))}
-          className="block w-full text-center text-xs uppercase tracking-wider text-muted-foreground transition hover:text-foreground"
-        >
-          {mode === "signin" ? "Need to make the account? Sign up" : "Got an account? Sign in"}
-        </button>
       </form>
 
       <p className="mt-6 max-w-sm text-center text-[11px] text-muted-foreground">

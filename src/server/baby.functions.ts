@@ -34,6 +34,7 @@ Your job: read the user's idea and decide:
   - bernice_reply: one short Baby-Firefly confirmation sentence acknowledging what you filed it as.`;
 
 export const classifyIdea = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ClassifyInput.parse(d))
   .handler(async ({ data }): Promise<ClassifyResult> => {
     const apiKey = process.env.LOVABLE_API_KEY;
@@ -116,6 +117,7 @@ Return: 3-5 concrete next_steps (action verbs), 3-5 key_questions to answer, and
 Keep each item to one short sentence. Plain language, practical, a little playful and sing-song, no fluff. No emojis. No Midwestern-isms. No "daddy-o" / "puddin'".`;
 
 export const growIdea = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => GrowInput.parse(d))
   .handler(async ({ data }): Promise<DevPack> => {
     const apiKey = process.env.LOVABLE_API_KEY;

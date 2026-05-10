@@ -19,6 +19,7 @@ function configurePush() {
 }
 
 export const subscribePush = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SubscribeSchema.parse(input))
   .handler(async ({ data }) => {
     const { error } = await supabaseAdmin
@@ -38,6 +39,7 @@ export const subscribePush = createServerFn({ method: "POST" })
   });
 
 export const unsubscribePush = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ endpoint: z.string().url() }).parse(input))
   .handler(async ({ data }) => {
     const { error } = await supabaseAdmin
@@ -48,7 +50,9 @@ export const unsubscribePush = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const sendTestPush = createServerFn({ method: "POST" }).handler(async () => {
+export const sendTestPush = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
   configurePush();
   const { data: subs } = await supabaseAdmin.from("push_subscriptions").select("*");
   if (!subs || subs.length === 0) return { sent: 0 };

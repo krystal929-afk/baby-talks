@@ -14,7 +14,9 @@ export type Memory = {
   created_at: string;
 };
 
-export const listMemories = createServerFn({ method: "GET" }).handler(async (): Promise<Memory[]> => {
+export const listMemories = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async (): Promise<Memory[]> => {
   const { data, error } = await client()
     .from("baby_memories")
     .select("id, content, source, created_at")
@@ -24,6 +26,7 @@ export const listMemories = createServerFn({ method: "GET" }).handler(async (): 
 });
 
 export const addMemory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ content: z.string().trim().min(2).max(400) }).parse(d))
   .handler(async ({ data }): Promise<Memory> => {
     const { data: row, error } = await client()
@@ -36,6 +39,7 @@ export const addMemory = createServerFn({ method: "POST" })
   });
 
 export const updateMemory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z.object({ id: z.string().uuid(), content: z.string().trim().min(2).max(400) }).parse(d),
   )
@@ -49,6 +53,7 @@ export const updateMemory = createServerFn({ method: "POST" })
   });
 
 export const deleteMemory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data }) => {
     const { error } = await client().from("baby_memories").delete().eq("id", data.id);

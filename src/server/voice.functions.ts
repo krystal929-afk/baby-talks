@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 // ElevenLabs TTS — Baby's voice. Returns base64 mp3 to keep the JSON path simple.
 // Voice: Matilda (XrExE9yKIg1WjnnlVkGX) — warm, friendly female. Closest natural fit

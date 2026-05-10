@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 function client() {
   return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);

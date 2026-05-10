@@ -3,6 +3,7 @@ import { z } from "zod";
 import webpush from "web-push";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { VAPID_PUBLIC_KEY, VAPID_SUBJECT } from "./push-config";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const SubscribeSchema = z.object({
   endpoint: z.string().url().max(2000),

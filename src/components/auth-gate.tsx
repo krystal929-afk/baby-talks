@@ -38,7 +38,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function LoginScreen() {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const mode = "signin" as const;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);

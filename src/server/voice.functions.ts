@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 // ElevenLabs TTS — Baby's voice. Returns base64 mp3 to keep the JSON path simple.
 // Voice: Matilda (XrExE9yKIg1WjnnlVkGX) — warm, friendly female. Closest natural fit
@@ -13,6 +14,7 @@ const TTSInput = z.object({
 const VOICE_ID = "q9N7djfjET83mt2m58Rd"; // Baby (cloned)
 
 export const speakBaby = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => TTSInput.parse(d))
   .handler(async ({ data }): Promise<{ audio: string | null; error: string | null }> => {
     const apiKey = process.env.ELEVENLABS_API_KEY;

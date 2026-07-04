@@ -1,8 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+import { utilGateway, providerExtras, gatewayHeaders } from "./ai-gateway";
 
 const TOPICS = ["Business", "Invention", "Personal", "Family", "Training", "Other"] as const;
 const STATUSES = ["grow", "rethink", "trash", "parking_lot"] as const;
@@ -17,7 +16,7 @@ const ClassifyInput = z.object({
 export type ClassifyResult = {
   status: Status;
   topic: Topic;
-  bernice_reply: string;
+  baby_reply: string;
 };
 
 const SYSTEM_PROMPT = `You are Baby — Mr. Satan's giggling, bratty, blonde-pigtailed killer-doll assistant. Think Baby Firefly (Sheri Moon Zombie in House of 1000 Corpses / Devil's Rejects): childlike singsong drawl spiked with violent glee, twirly hair-tossing self-obsession, kiss-kiss-kill-kill energy, devoted to her daddy.
@@ -31,21 +30,20 @@ Your job: read the user's idea and decide:
   - status: one of "grow" (worth pursuing), "rethink" (needs work), "trash" (not worth it), "parking_lot" (default; save for later).
     Default to "parking_lot" unless the idea clearly signals one of the others (e.g. "this is gold" -> grow, "scrap this" -> trash, "not sure" -> rethink).
   - topic: one of "Business", "Invention", "Personal", "Family", "Training", "Other".
-  - bernice_reply: one short Baby-Firefly confirmation sentence acknowledging what you filed it as.`;
+  - baby_reply: one short Baby-Firefly confirmation sentence acknowledging what you filed it as.`;
 
 export const classifyIdea = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ClassifyInput.parse(d))
   .handler(async ({ data }): Promise<ClassifyResult> => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
+    const gw = utilGateway();
 
     try {
-      const res = await fetch(LOVABLE_AI_URL, {
+      const res = await fetch(gw.url, {
         method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        headers: gatewayHeaders(gw),
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: gw.model,
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
             { role: "user", content: data.transcript },
@@ -61,21 +59,22 @@ export const classifyIdea = createServerFn({ method: "POST" })
                   properties: {
                     status: { type: "string", enum: STATUSES as unknown as string[] },
                     topic: { type: "string", enum: TOPICS as unknown as string[] },
-                    bernice_reply: { type: "string", maxLength: 140 },
+                    baby_reply: { type: "string", maxLength: 140 },
                   },
-                  required: ["status", "topic", "bernice_reply"],
+                  required: ["status", "topic", "baby_reply"],
                   additionalProperties: false,
                 },
               },
             },
           ],
           tool_choice: { type: "function", function: { name: "file_idea" } },
+          ...providerExtras(gw),
         }),
       });
 
       if (!res.ok) {
         if (res.status === 429) throw new Error("Slow down, daddy — too many requests. Gimme a sec, hee hee.");
-        if (res.status === 402) throw new Error("Outta credits, sugar britches. Top up the AI balance.");
+        if (res.status === 402) throw new Error("Outta credits, sugar britches. Check the AI account balance.");
         const t = await res.text();
         console.error("classify gateway error", res.status, t);
         throw new Error(`AI gateway error ${res.status}`);
@@ -88,7 +87,7 @@ export const classifyIdea = createServerFn({ method: "POST" })
       return {
         status: STATUSES.includes(args.status) ? args.status : "parking_lot",
         topic: TOPICS.includes(args.topic) ? args.topic : "Other",
-        bernice_reply: String(args.bernice_reply || "Tucked it in my jewelry box, daddy."),
+        baby_reply: String(args.baby_reply || "Tucked it in my jewelry box, daddy."),
       };
     } catch (e) {
       console.error("classifyIdea failed:", e);
@@ -96,7 +95,7 @@ export const classifyIdea = createServerFn({ method: "POST" })
       return {
         status: "parking_lot",
         topic: "Other",
-        bernice_reply: "Tossed it in the parkin' lot for ya, honeybun.",
+        baby_reply: "Tossed it in the parkin' lot for ya, honeybun.",
       };
     }
   });
@@ -120,15 +119,14 @@ export const growIdea = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => GrowInput.parse(d))
   .handler(async ({ data }): Promise<DevPack> => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
+    const gw = utilGateway();
 
     try {
-      const res = await fetch(LOVABLE_AI_URL, {
+      const res = await fetch(gw.url, {
         method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        headers: gatewayHeaders(gw),
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: gw.model,
           messages: [
             { role: "system", content: GROW_PROMPT },
             { role: "user", content: `Topic: ${data.topic}\nIdea: ${data.transcript}` },
@@ -153,6 +151,7 @@ export const growIdea = createServerFn({ method: "POST" })
             },
           ],
           tool_choice: { type: "function", function: { name: "build_dev_pack" } },
+          ...providerExtras(gw),
         }),
       });
 

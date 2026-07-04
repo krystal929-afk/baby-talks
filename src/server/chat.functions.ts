@@ -2,8 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-const LOVABLE_AI_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+import { chatGateway, providerExtras, gatewayHeaders } from "./ai-gateway";
 
 const Msg = z.object({
   role: z.enum(["user", "assistant"]),
@@ -76,8 +75,7 @@ export const chatWithBaby = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ChatInput.parse(d))
   .handler(async ({ data }): Promise<ChatResult> => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("LOVABLE_API_KEY missing");
+    const gw = chatGateway();
 
     const supabaseUrl = process.env.SUPABASE_URL!;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -179,19 +177,20 @@ export const chatWithBaby = createServerFn({ method: "POST" })
 
     try {
       for (let turn = 0; turn < 4; turn++) {
-        const res = await fetch(LOVABLE_AI_URL, {
+        const res = await fetch(gw.url, {
           method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          headers: gatewayHeaders(gw),
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
+            model: gw.model,
             messages: convo,
             tools,
+            ...providerExtras(gw),
           }),
         });
 
         if (!res.ok) {
           if (res.status === 429) throw new Error("Slow down, daddy — too many at once.");
-          if (res.status === 402) throw new Error("Outta AI credits, sugar britches.");
+          if (res.status === 402) throw new Error("Outta AI credits, sugar britches. Top up at openrouter.ai.");
           const t = await res.text();
           console.error("chat gateway error", res.status, t);
           throw new Error(`AI gateway error ${res.status}`);

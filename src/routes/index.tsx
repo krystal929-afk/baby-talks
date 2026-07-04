@@ -343,7 +343,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
       });
       if (error) throw error;
 
-      const reply = cls.bernice_reply || "Tucked it away, daddy.";
+      const reply = cls.baby_reply || "Tucked it away, daddy.";
       onSaved();
       playSting(cls.status);
       pingBaby(cls.status, reply);

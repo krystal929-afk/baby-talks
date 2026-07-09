@@ -1,6 +1,5 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 // Forward the current Supabase session access token as a Bearer header on
 // every server function call so requireSupabaseAuth can validate it.
@@ -19,5 +18,5 @@ const attachAuthHeader = createMiddleware({ type: "function" }).client(
 );
 
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth, attachAuthHeader],
+  functionMiddleware: [attachAuthHeader],
 }));

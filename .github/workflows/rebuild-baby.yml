@@ -36,13 +36,17 @@ jobs:
             git show "$SRC:$1" > "$2"
           }
 
-          # Remove Lovable-only material and stale secrets/locks
+          # Remove Lovable-only material
           rm -rf .lovable
           rm -f .env package-lock.json bun.lockb
+
           rm -f src/routes/mcp.ts
           rm -rf 'src/routes/[.mcp]'
           rm -rf 'src/routes/[.well-known]'
           rm -f 'src/routes/[.]lovable.oauth.consent.ts'
+
+          # Remove remaining Lovable MCP library
+          rm -rf src/lib/mcp
 
           # Root files
           for f in \

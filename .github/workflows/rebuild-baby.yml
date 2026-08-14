@@ -1,6 +1,9 @@
 name: Rebuild Baby Firefly
 
 on:
+  push:
+    branches:
+      - baby-firefly-clean
   workflow_dispatch:
 
 permissions:
@@ -41,42 +44,104 @@ jobs:
           rm -rf 'src/routes/[.well-known]'
           rm -f 'src/routes/[.]lovable.oauth.consent.ts'
 
-          # Root
-          for f in bunfig.toml components.json eslint.config.js package.json tsconfig.json vite.config.ts wrangler.jsonc; do
+          # Root files
+          for f in \
+            bunfig.toml \
+            components.json \
+            eslint.config.js \
+            package.json \
+            tsconfig.json \
+            vite.config.ts \
+            wrangler.jsonc
+          do
             copy "$f" "$f"
           done
 
           # Public
-          for f in app-icon-192.png app-icon-512.png favicon.png manifest.webmanifest sw.js; do
+          for f in \
+            app-icon-192.png \
+            app-icon-512.png \
+            favicon.png \
+            manifest.webmanifest \
+            sw.js
+          do
             copy "$f" "public/$f"
           done
 
           # Brand assets
-          for f in logo-green.png logo-primary.png logo-utility.png; do
+          for f in \
+            logo-green.png \
+            logo-primary.png \
+            logo-utility.png
+          do
             copy "$f" "src/assets/brand/$f"
           done
 
           # Components
-          for f in auth-gate.tsx baby-bubble.tsx baby-chat.tsx baby-mood.tsx push-toggle.tsx ransom-toast.tsx reminder-watcher.tsx; do
+          for f in \
+            auth-gate.tsx \
+            baby-bubble.tsx \
+            baby-chat.tsx \
+            baby-mood.tsx \
+            push-toggle.tsx \
+            ransom-toast.tsx \
+            reminder-watcher.tsx
+          do
             copy "$f" "src/components/$f"
           done
 
-          # UI
+          # UI components
           for f in \
-            accordion.tsx alert-dialog.tsx alert.tsx aspect-ratio.tsx avatar.tsx \
-            badge.tsx breadcrumb.tsx button.tsx card.tsx carousel.tsx chart.tsx \
-            checkbox.tsx collapsible.tsx command.tsx context-menu.tsx dialog.tsx \
-            drawer.tsx dropdown-menu.tsx form.tsx hover-card.tsx input-otp.tsx \
-            input.tsx label.tsx menubar.tsx navigation-menu.tsx pagination.tsx \
-            popover.tsx progress.tsx radio-group.tsx resizable.tsx scroll-area.tsx \
-            select.tsx separator.tsx sheet.tsx sidebar.tsx skeleton.tsx slider.tsx \
-            sonner.tsx switch.tsx table.tsx tabs.tsx textarea.tsx toggle-group.tsx \
-            toggle.tsx tooltip.tsx
+            accordion.tsx \
+            alert-dialog.tsx \
+            alert.tsx \
+            aspect-ratio.tsx \
+            avatar.tsx \
+            badge.tsx \
+            breadcrumb.tsx \
+            button.tsx \
+            card.tsx \
+            carousel.tsx \
+            chart.tsx \
+            checkbox.tsx \
+            collapsible.tsx \
+            command.tsx \
+            context-menu.tsx \
+            dialog.tsx \
+            drawer.tsx \
+            dropdown-menu.tsx \
+            form.tsx \
+            hover-card.tsx \
+            input-otp.tsx \
+            input.tsx \
+            label.tsx \
+            menubar.tsx \
+            navigation-menu.tsx \
+            pagination.tsx \
+            popover.tsx \
+            progress.tsx \
+            radio-group.tsx \
+            resizable.tsx \
+            scroll-area.tsx \
+            select.tsx \
+            separator.tsx \
+            sheet.tsx \
+            sidebar.tsx \
+            skeleton.tsx \
+            slider.tsx \
+            sonner.tsx \
+            switch.tsx \
+            table.tsx \
+            tabs.tsx \
+            textarea.tsx \
+            toggle-group.tsx \
+            toggle.tsx \
+            tooltip.tsx
           do
             copy "$f" "src/components/ui/$f"
           done
 
-          # Hooks — use fixed microphone version from main
+          # Hooks
           git show origin/main:src/hooks/use-dictation.ts > src/hooks/use-dictation.ts
           copy use-mobile.tsx src/hooks/use-mobile.tsx
           copy use-voice-pref.ts src/hooks/use-voice-pref.ts
@@ -89,7 +154,14 @@ jobs:
           copy types.ts src/integrations/supabase/types.ts
 
           # Libraries
-          for f in audio.ts push-config.ts push.functions.ts speak.ts stings.ts utils.ts; do
+          for f in \
+            audio.ts \
+            push-config.ts \
+            push.functions.ts \
+            speak.ts \
+            stings.ts \
+            utils.ts
+          do
             copy "$f" "src/lib/$f"
           done
 
@@ -101,7 +173,13 @@ jobs:
           copy send-due-reminders.ts src/routes/api/public/hooks/send-due-reminders.ts
 
           # Server
-          for f in ai-gateway.ts baby.functions.ts chat.functions.ts memories.functions.ts voice.functions.ts; do
+          for f in \
+            ai-gateway.ts \
+            baby.functions.ts \
+            chat.functions.ts \
+            memories.functions.ts \
+            voice.functions.ts
+          do
             copy "$f" "src/server/$f"
           done
 
@@ -129,18 +207,31 @@ jobs:
             copy "$f" "supabase/migrations/$f"
           done
 
-          copy 001_baby_firefly_secure_schema.sql supabase/migrations_freedom/001_baby_firefly_secure_schema.sql
-          copy README.md supabase/migrations_freedom/README.md
+          copy \
+            001_baby_firefly_secure_schema.sql \
+            supabase/migrations_freedom/001_baby_firefly_secure_schema.sql
 
-      - name: Install and build
-        run: |
-          npm install
-          npm run build
+          copy \
+            README.md \
+            supabase/migrations_freedom/README.md
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Baby Firefly
+        run: npm run build
 
       - name: Commit clean Baby Firefly
         run: |
           git config user.name "Baby Firefly Migration"
           git config user.email "actions@github.com"
+
           git add -A
-          git commit -m "Build Lovable-free Baby Firefly" || exit 0
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Build Lovable-free Baby Firefly"
           git push origin HEAD:baby-firefly-clean

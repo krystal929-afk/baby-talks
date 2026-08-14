@@ -74,7 +74,7 @@ async function tavilySearch(query: string): Promise<{ answer: string; sources: {
 export const chatWithBaby = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ChatInput.parse(d))
-  .handler(async ({ data }): Promise<ChatResult> => {
+  .handler(async ({ data, context }): Promise<ChatResult> => {
     const gw = chatGateway();
 
     const supabaseUrl = process.env.SUPABASE_URL!;
@@ -85,6 +85,7 @@ export const chatWithBaby = createServerFn({ method: "POST" })
     const { data: memRows } = await supa
       .from("baby_memories")
       .select("content")
+      .eq("owner_id", context.userId)
       .order("created_at", { ascending: false })
       .limit(80);
 
@@ -211,7 +212,7 @@ export const chatWithBaby = createServerFn({ method: "POST" })
               if (name === "remember") {
                 const fact = String(args.fact || "").trim();
                 if (fact) {
-                  await supa.from("baby_memories").insert({ content: fact, source: "auto" });
+                  await supa.from("baby_memories").insert({ owner_id: context.userId, content: fact, source: "auto" });
                   savedMemory = fact;
                   result = { ok: true };
                 }
@@ -226,6 +227,7 @@ export const chatWithBaby = createServerFn({ method: "POST" })
                 const starts_at = String(args.starts_at || "").trim();
                 if (title && starts_at) {
                   const { data: row, error } = await supa.from("calendar_events").insert({
+                    owner_id: context.userId,
                     title,
                     starts_at,
                     ends_at: args.ends_at || null,
@@ -245,6 +247,7 @@ export const chatWithBaby = createServerFn({ method: "POST" })
                 const { data: rows } = await supa
                   .from("calendar_events")
                   .select("id, title, starts_at, ends_at, location, notes")
+                  .eq("owner_id", context.userId)
                   .gte("starts_at", new Date().toISOString())
                   .lte("starts_at", until)
                   .order("starts_at", { ascending: true })

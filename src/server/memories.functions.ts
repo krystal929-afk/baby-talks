@@ -16,10 +16,11 @@ export type Memory = {
 
 export const listMemories = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async (): Promise<Memory[]> => {
+  .handler(async ({ context }): Promise<Memory[]> => {
   const { data, error } = await client()
     .from("baby_memories")
     .select("id, content, source, created_at")
+    .eq("owner_id", context.userId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as Memory[];
@@ -28,10 +29,10 @@ export const listMemories = createServerFn({ method: "GET" })
 export const addMemory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ content: z.string().trim().min(2).max(400) }).parse(d))
-  .handler(async ({ data }): Promise<Memory> => {
+  .handler(async ({ data, context }): Promise<Memory> => {
     const { data: row, error } = await client()
       .from("baby_memories")
-      .insert({ content: data.content, source: "manual" })
+      .insert({ owner_id: context.userId, content: data.content, source: "manual" })
       .select("id, content, source, created_at")
       .single();
     if (error) throw new Error(error.message);
@@ -43,10 +44,11 @@ export const updateMemory = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z.object({ id: z.string().uuid(), content: z.string().trim().min(2).max(400) }).parse(d),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const { error } = await client()
       .from("baby_memories")
       .update({ content: data.content })
+      .eq("owner_id", context.userId)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -55,8 +57,8 @@ export const updateMemory = createServerFn({ method: "POST" })
 export const deleteMemory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(async ({ data }) => {
-    const { error } = await client().from("baby_memories").delete().eq("id", data.id);
+  .handler(async ({ data, context }) => {
+    const { error } = await client().from("baby_memories").delete().eq("owner_id", context.userId).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

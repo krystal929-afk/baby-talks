@@ -21,18 +21,19 @@ function configurePush() {
 export const subscribePush = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SubscribeSchema.parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const { error } = await supabaseAdmin
       .from("push_subscriptions")
       .upsert(
         {
+          owner_id: context.userId,
           endpoint: data.endpoint,
           p256dh: data.p256dh,
           auth: data.auth,
           label: data.label ?? null,
           last_used_at: new Date().toISOString(),
         },
-        { onConflict: "endpoint" }
+        { onConflict: "owner_id,endpoint" }
       );
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -41,10 +42,11 @@ export const subscribePush = createServerFn({ method: "POST" })
 export const unsubscribePush = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ endpoint: z.string().url() }).parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const { error } = await supabaseAdmin
       .from("push_subscriptions")
       .delete()
+      .eq("owner_id", context.userId)
       .eq("endpoint", data.endpoint);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -52,9 +54,9 @@ export const unsubscribePush = createServerFn({ method: "POST" })
 
 export const sendTestPush = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
   configurePush();
-  const { data: subs } = await supabaseAdmin.from("push_subscriptions").select("*");
+  const { data: subs } = await supabaseAdmin.from("push_subscriptions").select("*").eq("owner_id", context.userId);
   if (!subs || subs.length === 0) return { sent: 0 };
 
   const payload = JSON.stringify({
@@ -74,7 +76,7 @@ export const sendTestPush = createServerFn({ method: "POST" })
       sent++;
     } catch (e: any) {
       if (e?.statusCode === 404 || e?.statusCode === 410) {
-        await supabaseAdmin.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
+        await supabaseAdmin.from("push_subscriptions").delete().eq("owner_id", context.userId).eq("endpoint", s.endpoint);
       }
     }
   }

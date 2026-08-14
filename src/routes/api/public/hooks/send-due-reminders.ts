@@ -56,7 +56,8 @@ async function run(request: Request) {
   let pushed = 0;
 
   for (const ev of events) {
-    if (subs && subs.length > 0) {
+    const ownerSubs = (subs ?? []).filter((s) => s.owner_id === ev.owner_id);
+    if (ownerSubs.length > 0) {
       const line = BABY_LINES[Math.floor(Math.random() * BABY_LINES.length)];
       const startsTxt = new Date(ev.starts_at).toLocaleString(undefined, {
         weekday: "short",
@@ -72,7 +73,7 @@ async function run(request: Request) {
         tag: `event-${ev.id}`,
       });
 
-      for (const s of subs) {
+      for (const s of ownerSubs) {
         try {
           await webpush.sendNotification(
             { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
@@ -81,7 +82,7 @@ async function run(request: Request) {
           pushed++;
         } catch (e: any) {
           if (e?.statusCode === 404 || e?.statusCode === 410) {
-            await supabaseAdmin.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
+            await supabaseAdmin.from("push_subscriptions").delete().eq("owner_id", ev.owner_id).eq("endpoint", s.endpoint);
           } else {
             console.error("push send failed", e?.statusCode, e?.body);
           }

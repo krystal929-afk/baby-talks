@@ -19,6 +19,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          owner_id: string
           source: string
           updated_at: string
         }
@@ -26,6 +27,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          owner_id?: string
           source?: string
           updated_at?: string
         }
@@ -44,6 +46,7 @@ export type Database = {
           created_at: string
           ends_at: string | null
           id: string
+          owner_id: string
           location: string | null
           notes: string | null
           remind_at: string | null
@@ -57,6 +60,7 @@ export type Database = {
           created_at?: string
           ends_at?: string | null
           id?: string
+          owner_id?: string
           location?: string | null
           notes?: string | null
           remind_at?: string | null
@@ -85,6 +89,7 @@ export type Database = {
           created_at: string
           dev_pack: Json | null
           id: string
+          owner_id: string
           status: string
           topic: string
           transcript: string
@@ -94,6 +99,7 @@ export type Database = {
           created_at?: string
           dev_pack?: Json | null
           id?: string
+          owner_id?: string
           status?: string
           topic?: string
           transcript: string
@@ -116,6 +122,7 @@ export type Database = {
           created_at: string
           endpoint: string
           id: string
+          owner_id: string
           label: string | null
           last_used_at: string | null
           p256dh: string
@@ -125,6 +132,7 @@ export type Database = {
           created_at?: string
           endpoint: string
           id?: string
+          owner_id?: string
           label?: string | null
           last_used_at?: string | null
           p256dh: string

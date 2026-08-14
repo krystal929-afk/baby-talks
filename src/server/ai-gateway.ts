@@ -75,8 +75,8 @@ export function gatewayHeaders(gw: GatewayConfig): Record<string, string> {
   };
   if (gw.provider === "openrouter") {
     // Optional OpenRouter attribution headers (help with free-tier ranking/limits).
-    headers["HTTP-Referer"] = "https://baby-talks.app";
-    headers["X-Title"] = "Baby Talks";
+    headers["HTTP-Referer"] = "https://baby-firefly.workers.dev";
+    headers["X-Title"] = "Baby Firefly";
   }
   return headers;
 }

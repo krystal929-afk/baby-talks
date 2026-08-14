@@ -38,7 +38,13 @@ export function useDictation() {
   const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
-  const finalRef = useRef("");
+  // Text finalized in *previous* sessions of this hold (survives auto-restarts).
+  const committedRef = useRef("");
+  // Text finalized in the *current* session — kept in sync from onresult so
+  // stop() can read it immediately, without waiting for onend.
+  const sessionFinalRef = useRef("");
+  // Latest interim text, mirrored in a ref for synchronous reads in stop().
+  const interimRef = useRef("");
   const recRef = useRef<SpeechRecognitionInstance | null>(null);
   const wantListeningRef = useRef(false);
   const startingRef = useRef(false);
@@ -50,6 +56,20 @@ export function useDictation() {
       try { recRef.current?.abort(); } catch { /* noop */ }
       recRef.current = null;
     };
+  }, []);
+
+  const setInterimText = useCallback((t: string) => {
+    interimRef.current = t;
+    setInterim(t);
+  }, []);
+
+  // Fold the current session's finalized text into the committed buffer.
+  // Idempotent: safe to call from both stop() and onend.
+  const commitSession = useCallback(() => {
+    if (sessionFinalRef.current) {
+      committedRef.current = (committedRef.current + " " + sessionFinalRef.current).trim() + " ";
+      sessionFinalRef.current = "";
+    }
   }, []);
 
   const start = useCallback(() => {
@@ -66,8 +86,9 @@ export function useDictation() {
     rec.lang = "en-US";
     rec.continuous = true;
     rec.interimResults = true;
-    finalRef.current = "";
-    setInterim("");
+    committedRef.current = "";
+    sessionFinalRef.current = "";
+    setInterimText("");
     wantListeningRef.current = true;
     startingRef.current = true;
 
@@ -77,8 +98,7 @@ export function useDictation() {
     };
     // iOS Safari quirk: results array is cumulative within a session and
     // resultIndex isn't always reliable. Rebuild final + interim from the
-    // entire results array each event, then snapshot finals on session end.
-    let sessionFinal = "";
+    // entire results array each event and store both in refs immediately.
     rec.onresult = (e) => {
       let finalText = "";
       let interimText = "";
@@ -88,8 +108,10 @@ export function useDictation() {
         if (r.isFinal) finalText += t + " ";
         else interimText += t;
       }
-      sessionFinal = finalText;
-      setInterim(interimText);
+      // Replaces (not appends) — results are cumulative within a session,
+      // so this never duplicates text.
+      sessionFinalRef.current = finalText.trim();
+      setInterimText(interimText);
     };
     rec.onerror = (e) => {
       // "no-speech" and "aborted" are benign — don't treat as fatal during a hold.
@@ -100,11 +122,9 @@ export function useDictation() {
     };
     rec.onend = () => {
       startingRef.current = false;
-      // Commit this session's finalized text before potential restart
-      if (sessionFinal) {
-        finalRef.current += sessionFinal;
-        sessionFinal = "";
-      }
+      // Commit this session's finalized text before a potential restart.
+      commitSession();
+      setInterimText("");
       // Auto-restart if user is still holding the mic and engine ended early
       if (wantListeningRef.current) {
         try {
@@ -127,20 +147,28 @@ export function useDictation() {
       recRef.current = null;
       setListening(false);
     }
-  }, []);
+  }, [commitSession, setInterimText]);
 
   const stop = useCallback((): string => {
     wantListeningRef.current = false;
+    // Snapshot everything synchronously BEFORE asking the engine to stop —
+    // onend may fire later (or not at all on some engines).
+    const pendingInterim = interimRef.current;
+    commitSession();
+    const result = (committedRef.current + " " + pendingInterim).replace(/\s+/g, " ").trim();
+
     const rec = recRef.current;
     if (rec) {
       try { rec.stop(); } catch { /* noop */ }
     }
-    const result = (finalRef.current + interim).trim();
-    finalRef.current = "";
-    setInterim("");
+
+    committedRef.current = "";
+    sessionFinalRef.current = "";
+    setInterimText("");
     // listening flag clears in onend
     return result;
-  }, [interim]);
+  }, [commitSession, setInterimText]);
 
   return { supported, listening, interim, start, stop };
 }
+

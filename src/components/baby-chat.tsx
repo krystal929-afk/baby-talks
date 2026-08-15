@@ -7,6 +7,7 @@ import {
 import {
   Brain,
   Check,
+  History,
   Loader2,
   MessageCircle,
   Pencil,
@@ -32,7 +33,12 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { chatWithBaby, type ChatMsg } from "@/server/chat.functions";
+
+import {
+  chatWithBaby,
+  type ChatMsg,
+} from "@/server/chat.functions";
+
 import {
   addMemory,
   deleteMemory,
@@ -40,6 +46,14 @@ import {
   updateMemory,
   type Memory,
 } from "@/server/memories.functions";
+
+import {
+  appendConversationMessage,
+  createConversation,
+  deleteConversation,
+  listConversations,
+  loadConversation,
+} from "@/server/conversations.functions";
 
 type Props = {
   open: boolean;
@@ -53,7 +67,10 @@ export function BabyChatDrawer({
   context,
 }: Props) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <SheetContent
         side="right"
         className="w-full sm:max-w-md p-0 flex flex-col bg-card"
@@ -69,12 +86,18 @@ export function BabyChatDrawer({
           className="flex-1 flex flex-col min-h-0"
         >
           <TabsList className="mx-4 mt-2 grid grid-cols-2">
-            <TabsTrigger value="chat" className="gap-2">
+            <TabsTrigger
+              value="chat"
+              className="gap-2"
+            >
               <MessageCircle className="size-4" />
               Chat
             </TabsTrigger>
 
-            <TabsTrigger value="brain" className="gap-2">
+            <TabsTrigger
+              value="brain"
+              className="gap-2"
+            >
               <Brain className="size-4" />
               Baby&apos;s Brain
             </TabsTrigger>
@@ -99,20 +122,113 @@ export function BabyChatDrawer({
   );
 }
 
-function ChatPane({ context }: { context?: string }) {
-  const [messages, setMessages] = useState<ChatMsg[]>([]);
+function ChatPane({
+  context,
+}: {
+  context?: string;
+}) {
+  const qc = useQueryClient();
+
+  const [messages, setMessages] =
+    useState<ChatMsg[]>([]);
+
   const [input, setInput] = useState("");
-  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  const [
+    conversationId,
+    setConversationId,
+  ] = useState<string | null>(null);
+
+  const scrollerRef =
+    useRef<HTMLDivElement>(null);
+
+  const {
+    data: conversations = [],
+  } = useQuery({
+    queryKey: ["baby_conversations"],
+    queryFn: () => listConversations(),
+  });
+
+  const {
+    data: loadedConversation,
+    isFetching: loadingConversation,
+  } = useQuery({
+    queryKey: [
+      "baby_conversation",
+      conversationId,
+    ],
+
+    queryFn: () =>
+      loadConversation({
+        data: {
+          conversation_id:
+            conversationId!,
+        },
+      }),
+
+    enabled: !!conversationId,
+  });
+
+  useEffect(() => {
+    if (!loadedConversation) {
+      return;
+    }
+
+    setMessages(
+      loadedConversation.messages.map(
+        (message) => ({
+          role: message.role,
+          content: message.content,
+        }),
+      ),
+    );
+  }, [loadedConversation]);
 
   useEffect(() => {
     scrollerRef.current?.scrollTo({
-      top: scrollerRef.current.scrollHeight,
+      top:
+        scrollerRef.current
+          .scrollHeight,
       behavior: "smooth",
     });
   }, [messages]);
 
+  const removeConversation =
+    useMutation({
+      mutationFn: (id: string) =>
+        deleteConversation({
+          data: {
+            conversation_id: id,
+          },
+        }),
+
+      onSuccess: () => {
+        setConversationId(null);
+        setMessages([]);
+
+        qc.invalidateQueries({
+          queryKey: [
+            "baby_conversations",
+          ],
+        });
+
+        toast.success(
+          "Baby burned that conversation.",
+        );
+      },
+
+      onError: (e: Error) => {
+        toast.error(
+          e.message ||
+            "Couldn't delete that conversation.",
+        );
+      },
+    });
+
   const send = useMutation({
-    mutationFn: async (text: string) => {
+    mutationFn: async (
+      text: string,
+    ) => {
       const next: ChatMsg[] = [
         ...messages,
         {
@@ -123,37 +239,112 @@ function ChatPane({ context }: { context?: string }) {
 
       setMessages(next);
 
-      const res = await chatWithBaby({
-        data: {
-          messages: next,
-          context,
-        },
+      let activeConversationId =
+        conversationId;
+
+      if (!activeConversationId) {
+        const conversation =
+          await createConversation({
+            data: {
+              first_message: text,
+            },
+          });
+
+        activeConversationId =
+          conversation.id;
+
+        setConversationId(
+          conversation.id,
+        );
+      } else {
+        await appendConversationMessage({
+          data: {
+            conversation_id:
+              activeConversationId,
+            role: "user",
+            content: text,
+          },
+        });
+      }
+
+      const res =
+        await chatWithBaby({
+          data: {
+            messages: next,
+            context,
+          },
+        });
+
+      const finalMessages: ChatMsg[] =
+        [
+          ...next,
+          {
+            role: "assistant",
+            content: res.reply,
+          },
+        ];
+
+      setMessages(finalMessages);
+
+      try {
+        await appendConversationMessage({
+          data: {
+            conversation_id:
+              activeConversationId,
+            role: "assistant",
+            content: res.reply,
+          },
+        });
+      } catch (e) {
+        console.error(
+          "Conversation save failed:",
+          e,
+        );
+
+        toast.error(
+          "Baby answered, but couldn't save that reply.",
+        );
+      }
+
+      qc.invalidateQueries({
+        queryKey: [
+          "baby_conversations",
+        ],
       });
 
-      setMessages([
-        ...next,
-        {
-          role: "assistant",
-          content: res.reply,
-        },
-      ]);
+      qc.invalidateQueries({
+        queryKey: [
+          "baby_conversation",
+          activeConversationId,
+        ],
+      });
 
       if (res.saved_memory) {
-        toast.success("Baby tucked it in her brain", {
-          description: res.saved_memory,
-        });
+        toast.success(
+          "Baby tucked it in her brain",
+          {
+            description:
+              res.saved_memory,
+          },
+        );
       }
     },
 
     onError: (e: Error) => {
-      toast.error(e.message || "Baby got stuck.");
+      toast.error(
+        e.message ||
+          "Baby got stuck.",
+      );
     },
   });
 
   const submitChat = () => {
     const text = input.trim();
 
-    if (!text || send.isPending) {
+    if (
+      !text ||
+      send.isPending
+    ) {
       return;
     }
 
@@ -161,23 +352,152 @@ function ChatPane({ context }: { context?: string }) {
     send.mutate(text);
   };
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = (
+    e: React.FormEvent,
+  ) => {
     e.preventDefault();
     submitChat();
   };
 
+  const startNewChat = () => {
+    if (send.isPending) {
+      return;
+    }
+
+    setConversationId(null);
+    setMessages([]);
+    setInput("");
+  };
+
+  const selectConversation = (
+    id: string,
+  ) => {
+    if (send.isPending) {
+      return;
+    }
+
+    if (!id) {
+      startNewChat();
+      return;
+    }
+
+    setConversationId(id);
+    setMessages([]);
+  };
+
+  const currentConversation =
+    conversations.find(
+      (conversation) =>
+        conversation.id ===
+        conversationId,
+    );
+
   return (
     <div className="flex flex-col h-full">
+      <div className="border-b border-border p-2 flex items-center gap-2">
+        <History className="size-4 shrink-0 text-muted-foreground" />
+
+        <select
+          value={
+            conversationId ?? ""
+          }
+          onChange={(e) =>
+            selectConversation(
+              e.target.value,
+            )
+          }
+          disabled={send.isPending}
+          className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-2 text-sm text-foreground"
+          aria-label="Saved conversations"
+        >
+          <option value="">
+            New conversation
+          </option>
+
+          {conversations.map(
+            (conversation) => (
+              <option
+                key={
+                  conversation.id
+                }
+                value={
+                  conversation.id
+                }
+              >
+                {conversation.title}
+              </option>
+            ),
+          )}
+        </select>
+
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          className="shrink-0"
+          onClick={startNewChat}
+          disabled={send.isPending}
+          aria-label="New conversation"
+        >
+          <Plus className="size-4" />
+        </Button>
+
+        {conversationId && (
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="shrink-0 text-destructive"
+            disabled={
+              removeConversation.isPending ||
+              send.isPending
+            }
+            onClick={() => {
+              const ok = confirm(
+                `Burn "${
+                  currentConversation?.title ??
+                  "this conversation"
+                }"?`,
+              );
+
+              if (ok) {
+                removeConversation.mutate(
+                  conversationId,
+                );
+              }
+            }}
+            aria-label="Delete conversation"
+          >
+            {removeConversation.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Trash2 className="size-4" />
+            )}
+          </Button>
+        )}
+      </div>
+
       <div
         ref={scrollerRef}
         className="flex-1 overflow-y-auto px-4 py-3 space-y-3"
       >
-        {messages.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Banter with Baby. She remembers things you tell her —
-            check her brain anytime.
-          </p>
+        {loadingConversation && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-3 animate-spin" />
+            Baby&apos;s diggin&apos;
+            through the old tapes…
+          </div>
         )}
+
+        {!loadingConversation &&
+          messages.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Banter with Baby. She
+              remembers things you tell
+              her — and now she keeps
+              your conversations too.
+            </p>
+          )}
 
         {messages.map((m, i) => {
           if (m.role === "user") {
@@ -191,7 +511,9 @@ function ChatPane({ context }: { context?: string }) {
             );
           }
 
-          const isLast = i === messages.length - 1;
+          const isLast =
+            i ===
+            messages.length - 1;
 
           return (
             <div
@@ -200,7 +522,10 @@ function ChatPane({ context }: { context?: string }) {
             >
               <BabyBubble
                 text={m.content}
-                animate={isLast && !send.isPending}
+                animate={
+                  isLast &&
+                  !send.isPending
+                }
               />
             </div>
           );
@@ -209,7 +534,8 @@ function ChatPane({ context }: { context?: string }) {
         {send.isPending && (
           <div className="mr-auto flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-3 animate-spin" />
-            Baby&apos;s thinkin&apos;…
+            Baby&apos;s
+            thinkin&apos;…
           </div>
         )}
       </div>
@@ -220,12 +546,19 @@ function ChatPane({ context }: { context?: string }) {
       >
         <Textarea
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) =>
+            setInput(
+              e.target.value,
+            )
+          }
           placeholder="Talk to Baby…"
           rows={2}
           className="resize-none"
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (
+              e.key === "Enter" &&
+              !e.shiftKey
+            ) {
               e.preventDefault();
               submitChat();
             }
@@ -235,7 +568,10 @@ function ChatPane({ context }: { context?: string }) {
         <Button
           type="submit"
           size="icon"
-          disabled={send.isPending || !input.trim()}
+          disabled={
+            send.isPending ||
+            !input.trim()
+          }
         >
           {send.isPending ? (
             <Loader2 className="size-4 animate-spin" />
@@ -256,13 +592,17 @@ function BrainPane() {
     isLoading,
   } = useQuery({
     queryKey: ["baby_memories"],
-    queryFn: () => listMemories(),
+    queryFn: () =>
+      listMemories(),
   });
 
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] =
+    useState("");
 
   const add = useMutation({
-    mutationFn: (content: string) =>
+    mutationFn: (
+      content: string,
+    ) =>
       addMemory({
         data: {
           content,
@@ -273,15 +613,20 @@ function BrainPane() {
       setDraft("");
 
       qc.invalidateQueries({
-        queryKey: ["baby_memories"],
+        queryKey: [
+          "baby_memories",
+        ],
       });
 
-      toast.success("Added to Baby's brain");
+      toast.success(
+        "Added to Baby's brain",
+      );
     },
 
     onError: (e: Error) => {
       toast.error(
-        e.message || "Baby couldn't save that memory.",
+        e.message ||
+          "Baby couldn't save that memory.",
       );
     },
   });
@@ -296,13 +641,16 @@ function BrainPane() {
 
     onSuccess: () => {
       qc.invalidateQueries({
-        queryKey: ["baby_memories"],
+        queryKey: [
+          "baby_memories",
+        ],
       });
     },
 
     onError: (e: Error) => {
       toast.error(
-        e.message || "Baby couldn't delete that memory.",
+        e.message ||
+          "Baby couldn't delete that memory.",
       );
     },
   });
@@ -318,15 +666,20 @@ function BrainPane() {
 
     onSuccess: () => {
       qc.invalidateQueries({
-        queryKey: ["baby_memories"],
+        queryKey: [
+          "baby_memories",
+        ],
       });
 
-      toast.success("Baby updated her brain");
+      toast.success(
+        "Baby updated her brain",
+      );
     },
 
     onError: (e: Error) => {
       toast.error(
-        e.message || "Baby couldn't update that memory.",
+        e.message ||
+          "Baby couldn't update that memory.",
       );
     },
   });
@@ -336,15 +689,22 @@ function BrainPane() {
       return;
     }
 
-    const content = draft.trim();
+    const content =
+      draft.trim();
 
     if (!content) {
-      toast.error("Tell Baby what you want her to remember first.");
+      toast.error(
+        "Tell Baby what you want her to remember first.",
+      );
+
       return;
     }
 
     if (content.length < 2) {
-      toast.error("Give Baby a little more to work with.");
+      toast.error(
+        "Give Baby a little more to work with.",
+      );
+
       return;
     }
 
@@ -366,10 +726,16 @@ function BrainPane() {
       >
         <Textarea
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) =>
+            setDraft(
+              e.target.value,
+            )
+          }
           onInput={(e) =>
             setDraft(
-              (e.target as HTMLTextAreaElement).value,
+              (
+                e.target as HTMLTextAreaElement
+              ).value,
             )
           }
           placeholder="Teach Baby something. e.g. 'Daddy's favorite vendor for foam is Smooth-On.'"
@@ -387,12 +753,14 @@ function BrainPane() {
           {add.isPending ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Baby&apos;s saving it…
+              Baby&apos;s saving
+              it…
             </>
           ) : (
             <>
               <Plus className="size-4" />
-              Add to Baby&apos;s brain
+              Add to Baby&apos;s
+              brain
             </>
           )}
         </Button>
@@ -403,28 +771,37 @@ function BrainPane() {
           <Loader2 className="size-4 animate-spin text-muted-foreground" />
         )}
 
-        {!isLoading && memories.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Baby&apos;s brain is empty. Add facts here or
-            just chat — she&apos;ll save things on her own.
-          </p>
-        )}
+        {!isLoading &&
+          memories.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Baby&apos;s brain is
+              empty. Add facts here or
+              just chat — she&apos;ll
+              save things on her own.
+            </p>
+          )}
 
-        {memories.map((memory) => (
-          <MemoryRow
-            key={memory.id}
-            memory={memory}
-            onDelete={() =>
-              del.mutate(memory.id)
-            }
-            onUpdate={(content) =>
-              update.mutate({
-                id: memory.id,
+        {memories.map(
+          (memory) => (
+            <MemoryRow
+              key={memory.id}
+              memory={memory}
+              onDelete={() =>
+                del.mutate(
+                  memory.id,
+                )
+              }
+              onUpdate={(
                 content,
-              })
-            }
-          />
-        ))}
+              ) =>
+                update.mutate({
+                  id: memory.id,
+                  content,
+                })
+              }
+            />
+          ),
+        )}
       </div>
     </div>
   );
@@ -437,10 +814,15 @@ function MemoryRow({
 }: {
   memory: Memory;
   onDelete: () => void;
-  onUpdate: (content: string) => void;
+  onUpdate: (
+    content: string,
+  ) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState(memory.content);
+  const [editing, setEditing] =
+    useState(false);
+
+  const [val, setVal] =
+    useState(memory.content);
 
   const saveEdit = () => {
     const content = val.trim();
@@ -462,19 +844,28 @@ function MemoryRow({
           <Input
             value={val}
             onChange={(e) =>
-              setVal(e.target.value)
+              setVal(
+                e.target.value,
+              )
             }
             autoFocus
             maxLength={400}
             className="text-sm"
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
+              if (
+                e.key === "Enter"
+              ) {
                 e.preventDefault();
                 saveEdit();
               }
 
-              if (e.key === "Escape") {
-                setVal(memory.content);
+              if (
+                e.key === "Escape"
+              ) {
+                setVal(
+                  memory.content,
+                );
+
                 setEditing(false);
               }
             }}
@@ -486,7 +877,8 @@ function MemoryRow({
         )}
 
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
-          {memory.source === "auto"
+          {memory.source ===
+          "auto"
             ? "Baby saved this"
             : "You taught Baby"}{" "}
           ·{" "}

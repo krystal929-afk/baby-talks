@@ -1,7 +1,30 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "baby-firefly",
+  "name": "baby-talks",
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
+
+  "vars": {
+    "SUPABASE_URL": "https://jtymnvlzbabobroabzlf.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_lE--DJbQlU1J7A42U8vi3A_gTAr8wUW",
+    "CHAT_AI_MODEL": "openrouter/free"
+  },
+
+  "secrets": {
+    "required": [
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "OPENROUTER_API_KEY",
+      "GEMINI_API_KEY"
+    ]
+  },
+
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "head_sampling_rate": 1
+    }
+  }
 }

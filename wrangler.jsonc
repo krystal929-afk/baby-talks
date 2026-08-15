@@ -1,19 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "baby-talks",
+  "name": "baby-firefly",
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
-
-  "vars": {
-    "SUPABASE_URL": "https://jtymnvlzbabobroabzlf.supabase.co",
-    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_lE--DJbQlU1J7A42U8vi3A_gTAr8wUW"
-  },
-
-  "observability": {
-    "logs": {
-      "enabled": true,
-      "invocation_logs": true
-    }
-  }
 }

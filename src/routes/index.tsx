@@ -1,23 +1,51 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Mic, Square, Loader2, Trash2, Sparkles, X, Plus, Send, CalendarDays, Brain, LogOut } from "lucide-react";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
+import {
+  Mic,
+  Square,
+  Loader2,
+  Trash2,
+  Sparkles,
+  Plus,
+  Send,
+  CalendarDays,
+  Brain,
+  LogOut,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useDictation } from "@/hooks/use-dictation";
-import { classifyIdea, growIdea, type DevPack } from "@/server/baby.functions";
+import {
+  classifyIdea,
+  growIdea,
+  type DevPack,
+} from "@/server/baby.functions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { playSting } from "@/lib/stings";
 import { BabyMood, pingBaby } from "@/components/baby-mood";
-import { BabyChatButton, BabyChatDrawer } from "@/components/baby-chat";
+import {
+  BabyChatButton,
+  BabyChatDrawer,
+} from "@/components/baby-chat";
 import { signOut } from "@/components/auth-gate";
 import logoPrimary from "@/assets/brand/logo-primary.png";
 
-// Local QueryClient — index page is the whole app, no other routes use it yet.
 const qc = new QueryClient();
 
 export const Route = createFileRoute("/")({
@@ -40,7 +68,27 @@ type Idea = {
   updated_at: string;
 };
 
-const STATUS_META: Record<Status, { label: string; cls: string; chipCls: string; tagline: string }> = {
+async function getCurrentUserId() {
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error) throw error;
+  if (!user) throw new Error("Baby lost your login. Sign in again.");
+
+  return user.id;
+}
+
+const STATUS_META: Record<
+  Status,
+  {
+    label: string;
+    cls: string;
+    chipCls: string;
+    tagline: string;
+  }
+> = {
   grow: {
     label: "Grow",
     cls: "border-grow/50 bg-grow/10",
@@ -67,53 +115,81 @@ const STATUS_META: Record<Status, { label: string; cls: string; chipCls: string;
   },
 };
 
-const STATUS_ORDER: Status[] = ["grow", "rethink", "parking_lot", "trash"];
+const STATUS_ORDER: Status[] = [
+  "grow",
+  "rethink",
+  "parking_lot",
+  "trash",
+];
 
 function BabyApp() {
   const queryClient = useQueryClient();
+
   const [openIdea, setOpenIdea] = useState<Idea | null>(null);
   const [topicFilter, setTopicFilter] = useState<string>("all");
   const [chatOpen, setChatOpen] = useState(false);
 
   const { data: ideas = [], isLoading } = useQuery({
     queryKey: ["ideas"],
+
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ideas")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", {
+          ascending: false,
+        });
+
       if (error) throw error;
+
       return (data ?? []) as unknown as Idea[];
     },
   });
 
   const topics = useMemo(() => {
     const s = new Set<string>();
+
     ideas.forEach((i) => s.add(i.topic));
+
     return Array.from(s).sort();
   }, [ideas]);
 
   const visible = useMemo(
-    () => (topicFilter === "all" ? ideas : ideas.filter((i) => i.topic === topicFilter)),
-    [ideas, topicFilter]
+    () =>
+      topicFilter === "all"
+        ? ideas
+        : ideas.filter((i) => i.topic === topicFilter),
+    [ideas, topicFilter],
   );
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["ideas"] });
+  const refresh = () =>
+    queryClient.invalidateQueries({
+      queryKey: ["ideas"],
+    });
 
   return (
     <div className="min-h-screen pb-44">
       <BabyMood />
+
       <Header />
+
       <QuickTiles />
 
-      {/* Topic filters */}
       <div className="sticky top-0 z-10 -mt-px border-b border-border/40 bg-background/85 px-4 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-3xl gap-2 overflow-x-auto">
-          <FilterChip active={topicFilter === "all"} onClick={() => setTopicFilter("all")}>
+          <FilterChip
+            active={topicFilter === "all"}
+            onClick={() => setTopicFilter("all")}
+          >
             All
           </FilterChip>
+
           {topics.map((t) => (
-            <FilterChip key={t} active={topicFilter === t} onClick={() => setTopicFilter(t)}>
+            <FilterChip
+              key={t}
+              active={topicFilter === t}
+              onClick={() => setTopicFilter(t)}
+            >
               {t}
             </FilterChip>
           ))}
@@ -123,17 +199,27 @@ function BabyApp() {
       <main className="mx-auto max-w-3xl px-4 pt-4">
         {isLoading ? (
           <div className="flex items-center justify-center py-20 text-muted-foreground">
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Diggin' through Baby&apos;s box…
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            Diggin&apos; through Baby&apos;s box…
           </div>
         ) : ideas.length === 0 ? (
           <EmptyState />
         ) : (
           <div className="space-y-6">
             {STATUS_ORDER.map((s) => {
-              const items = visible.filter((i) => i.status === s);
+              const items = visible.filter(
+                (i) => i.status === s,
+              );
+
               if (items.length === 0) return null;
+
               return (
-                <Column key={s} status={s} ideas={items} onOpen={setOpenIdea} />
+                <Column
+                  key={s}
+                  status={s}
+                  ideas={items}
+                  onOpen={setOpenIdea}
+                />
               );
             })}
           </div>
@@ -145,12 +231,11 @@ function BabyApp() {
       <IdeaDetail
         idea={openIdea}
         onClose={() => setOpenIdea(null)}
-        onChanged={() => {
-          refresh();
-        }}
+        onChanged={refresh}
       />
 
       <BabyChatButton onClick={() => setChatOpen(true)} />
+
       <BabyChatDrawer
         open={chatOpen}
         onOpenChange={setChatOpen}
@@ -175,17 +260,21 @@ function Header() {
       >
         <LogOut className="h-4 w-4" />
       </button>
+
       <img
         src={logoPrimary}
         alt="MR. SATAN"
         className="mx-auto h-32 w-auto select-none drop-shadow-[0_0_24px_oklch(0.92_0.23_124/25%)]"
         draggable={false}
       />
+
       <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.4em] text-primary flicker">
         Baby&apos;s Killer Notepad
       </p>
+
       <p className="mt-2 text-sm text-muted-foreground">
-        Hold the mic. Spill it, daddy. Baby&apos;ll tuck it away for ya.
+        Hold the mic. Spill it, daddy. Baby&apos;ll tuck it
+        away for ya.
       </p>
     </header>
   );
@@ -201,11 +290,18 @@ function QuickTiles() {
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
           <CalendarDays className="h-5 w-5" />
         </div>
+
         <div>
-          <div className="font-display text-base text-foreground">Calendar</div>
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Gigs &amp; reminders</div>
+          <div className="font-display text-base text-foreground">
+            Calendar
+          </div>
+
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            Gigs &amp; reminders
+          </div>
         </div>
       </Link>
+
       <Link
         to="/brain"
         className="group flex items-center gap-3 rounded-2xl border border-border/60 bg-card/70 p-4 transition hover:border-primary/60 hover:bg-card"
@@ -213,9 +309,15 @@ function QuickTiles() {
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-accent">
           <Brain className="h-5 w-5" />
         </div>
+
         <div>
-          <div className="font-display text-base text-foreground">Brain</div>
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">What Baby remembers</div>
+          <div className="font-display text-base text-foreground">
+            Brain
+          </div>
+
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            What Baby remembers
+          </div>
         </div>
       </Link>
     </div>
@@ -238,7 +340,7 @@ function FilterChip({
         "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition",
         active
           ? "border-primary bg-primary text-primary-foreground shadow-[0_0_20px_oklch(0.92_0.23_124/40%)]"
-          : "border-border/60 bg-card/60 text-muted-foreground hover:text-foreground"
+          : "border-border/60 bg-card/60 text-muted-foreground hover:text-foreground",
       )}
     >
       {children}
@@ -256,47 +358,85 @@ function Column({
   onOpen: (i: Idea) => void;
 }) {
   const meta = STATUS_META[status];
+
   return (
     <section>
       <div className="mb-2 flex items-baseline justify-between px-1">
         <div className="flex items-center gap-2">
-          <span className={cn("inline-block h-2 w-2 rounded-full", meta.chipCls)} />
-          <h2 className="font-display text-lg text-foreground">{meta.label}</h2>
-          <span className="text-xs text-muted-foreground">{meta.tagline}</span>
+          <span
+            className={cn(
+              "inline-block h-2 w-2 rounded-full",
+              meta.chipCls,
+            )}
+          />
+
+          <h2 className="font-display text-lg text-foreground">
+            {meta.label}
+          </h2>
+
+          <span className="text-xs text-muted-foreground">
+            {meta.tagline}
+          </span>
         </div>
-        <span className="text-xs text-muted-foreground">{ideas.length}</span>
+
+        <span className="text-xs text-muted-foreground">
+          {ideas.length}
+        </span>
       </div>
+
       <div className="space-y-2">
         {ideas.map((i) => (
-          <IdeaCard key={i.id} idea={i} onClick={() => onOpen(i)} />
+          <IdeaCard
+            key={i.id}
+            idea={i}
+            onClick={() => onOpen(i)}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function IdeaCard({ idea, onClick }: { idea: Idea; onClick: () => void }) {
+function IdeaCard({
+  idea,
+  onClick,
+}: {
+  idea: Idea;
+  onClick: () => void;
+}) {
   const meta = STATUS_META[idea.status];
+
   return (
     <button
       onClick={onClick}
       className={cn(
         "w-full rounded-xl border p-4 text-left transition active:scale-[0.99]",
-        "border-border/60 bg-card/80 hover:border-primary/50 hover:bg-card"
+        "border-border/60 bg-card/80 hover:border-primary/50 hover:bg-card",
       )}
     >
       <div className="mb-2 flex items-center gap-2">
-        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider", meta.chipCls)}>
+        <span
+          className={cn(
+            "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+            meta.chipCls,
+          )}
+        >
           {meta.label}
         </span>
+
         <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
           {idea.topic}
         </span>
+
         {idea.dev_pack && (
           <Sparkles className="h-3 w-3 text-accent" />
         )}
       </div>
-      <p className="line-clamp-3 text-sm text-foreground">{idea.transcript}</p>
+
+      <p className="line-clamp-3 text-sm text-foreground">
+        {idea.transcript}
+      </p>
+
       <p className="mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
         {new Date(idea.created_at).toLocaleString()}
       </p>
@@ -310,21 +450,30 @@ function EmptyState() {
       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-primary/40 bg-primary/10">
         <Mic className="h-7 w-7 text-primary" />
       </div>
-      <h3 className="font-display text-xl text-foreground">Nothin' in here yet, daddy</h3>
+
+      <h3 className="font-display text-xl text-foreground">
+        Nothin&apos; in here yet, daddy
+      </h3>
+
       <p className="mt-2 text-sm text-muted-foreground">
-        Press and hold the big green button. Whisper somethin' wicked. Baby&apos;ll handle the rest.
+        Press and hold the big green button. Whisper
+        somethin&apos; wicked. Baby&apos;ll handle the rest.
       </p>
     </div>
   );
 }
 
-/* ───────────────────────────── Capture ───────────────────────────── */
-
-function CaptureBar({ onSaved }: { onSaved: () => void }) {
+function CaptureBar({
+  onSaved,
+}: {
+  onSaved: () => void;
+}) {
   const dictation = useDictation();
+
   const [text, setText] = useState("");
   const [pending, setPending] = useState(false);
   const [showText, setShowText] = useState(false);
+
   const holdActiveRef = useRef(false);
   const pressStartTsRef = useRef(0);
 
@@ -332,19 +481,33 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
 
   async function saveIdea(transcript: string) {
     if (!transcript.trim()) return;
+
     setPending(true);
     pingBaby("thinking", "");
+
     try {
-      const cls = await classifyIdea({ data: { transcript } });
+      const ownerId = await getCurrentUserId();
+
+      const cls = await classifyIdea({
+        data: {
+          transcript,
+        },
+      });
+
       const { error } = await supabase.from("ideas").insert({
+        owner_id: ownerId,
         transcript,
         status: cls.status,
         topic: cls.topic,
       });
+
       if (error) throw error;
 
-      const reply = cls.baby_reply || "Tucked it away, daddy.";
+      const reply =
+        cls.baby_reply || "Tucked it away, daddy.";
+
       onSaved();
+
       playSting(cls.status);
       pingBaby(cls.status, reply);
 
@@ -352,41 +515,74 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
       setShowText(false);
     } catch (e) {
       console.error(e);
+
       pingBaby("idle", "");
-      toast.error(e instanceof Error ? e.message : "Baby chipped a nail. Try again, sugar britches.");
+
+      toast.error(
+        e instanceof Error
+          ? e.message
+          : "Baby chipped a nail. Try again, sugar britches.",
+      );
     } finally {
       setPending(false);
     }
   }
 
-  function handlePressStart(e: React.PointerEvent<HTMLButtonElement>) {
+  function handlePressStart(
+    e: React.PointerEvent<HTMLButtonElement>,
+  ) {
     if (pending) return;
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* noop */ }
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // noop
+    }
+
     holdActiveRef.current = true;
     pressStartTsRef.current = Date.now();
+
     if (dictation.supported) {
       dictation.start();
     } else {
       setShowText(true);
     }
   }
-  function handlePressEnd(e: React.PointerEvent<HTMLButtonElement>) {
-    if (!holdActiveRef.current) return;
-    holdActiveRef.current = false;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* noop */ }
 
-    const heldMs = Date.now() - pressStartTsRef.current;
+  function handlePressEnd(
+    e: React.PointerEvent<HTMLButtonElement>,
+  ) {
+    if (!holdActiveRef.current) return;
+
+    holdActiveRef.current = false;
+
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // noop
+    }
+
+    const heldMs =
+      Date.now() - pressStartTsRef.current;
+
     if (heldMs < 250) {
-      // Tap was too short — engine may not have started. Cancel cleanly.
       dictation.stop();
-      toast("Hold the button longer, daddy — keep it pressed while you talk.");
+
+      toast(
+        "Hold the button longer, daddy — keep it pressed while you talk.",
+      );
+
       return;
     }
 
     if (dictation.supported) {
       const result = dictation.stop();
-      if (result) saveIdea(result);
-      else toast("Didn't catch that one, daddy. Try again.");
+
+      if (result) {
+        saveIdea(result);
+      } else {
+        toast("Didn't catch that one, daddy. Try again.");
+      }
     }
   }
 
@@ -395,8 +591,15 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
       <div className="mx-auto max-w-3xl px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
         {(dictation.listening || liveText) && (
           <div className="mb-3 rounded-xl border border-border/60 bg-card/80 px-3 py-2 text-sm text-foreground">
-            <span className="text-muted-foreground">{dictation.listening ? "Listening… " : ""}</span>
-            {liveText || <span className="italic text-muted-foreground">whisper somethin'…</span>}
+            <span className="text-muted-foreground">
+              {dictation.listening ? "Listening… " : ""}
+            </span>
+
+            {liveText || (
+              <span className="italic text-muted-foreground">
+                whisper somethin&apos;…
+              </span>
+            )}
           </div>
         )}
 
@@ -409,6 +612,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
               rows={2}
               className="flex-1 resize-none bg-card"
             />
+
             <Button
               type="button"
               size="icon"
@@ -416,7 +620,11 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
               onClick={() => saveIdea(text)}
               className="h-auto"
             >
-              {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {pending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </div>
         )}
@@ -441,7 +649,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
             className={cn(
               "relative flex h-20 w-20 select-none items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-glow)] transition",
               dictation.listening && "recording-pulse",
-              pending && "opacity-60"
+              pending && "opacity-60",
             )}
             style={{
               touchAction: "none",
@@ -450,15 +658,28 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
             aria-label="Hold to dictate"
           >
             {pending ? (
-              <Loader2 className="h-8 w-8 animate-spin" strokeWidth={2.5} />
+              <Loader2
+                className="h-8 w-8 animate-spin"
+                strokeWidth={2.5}
+              />
             ) : dictation.listening ? (
-              <Square className="h-8 w-8" strokeWidth={2.5} fill="currentColor" />
+              <Square
+                className="h-8 w-8"
+                strokeWidth={2.5}
+                fill="currentColor"
+              />
             ) : (
-              <Mic className="h-9 w-9" strokeWidth={2.5} />
+              <Mic
+                className="h-9 w-9"
+                strokeWidth={2.5}
+              />
             )}
           </button>
 
-          <div className="w-10" aria-hidden />
+          <div
+            className="w-10"
+            aria-hidden
+          />
         </div>
 
         <p className="mt-2 text-center text-[11px] text-muted-foreground">
@@ -470,8 +691,6 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
     </div>
   );
 }
-
-/* ───────────────────────────── Detail ───────────────────────────── */
 
 function IdeaDetail({
   idea,
@@ -487,27 +706,43 @@ function IdeaDetail({
   const [growing, setGrowing] = useState(false);
 
   useEffect(() => {
-    if (idea) setEditText(idea.transcript);
+    if (idea) {
+      setEditText(idea.transcript);
+    }
   }, [idea]);
 
   if (!idea) return null;
 
   async function update(patch: Partial<Idea>) {
     setSaving(true);
+
     try {
-      const { error } = await supabase.from("ideas").update(patch).eq("id", idea!.id);
+      const { error } = await supabase
+        .from("ideas")
+        .update(patch)
+        .eq("id", idea!.id);
+
       if (error) throw error;
+
       onChanged();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Save failed");
+      toast.error(
+        e instanceof Error ? e.message : "Save failed",
+      );
     } finally {
       setSaving(false);
     }
   }
 
   async function changeStatus(newStatus: Status) {
-    await update({ status: newStatus });
-    if (newStatus === "grow" && !idea!.dev_pack) {
+    await update({
+      status: newStatus,
+    });
+
+    if (
+      newStatus === "grow" &&
+      !idea!.dev_pack
+    ) {
       await handleGrow();
     } else {
       onClose();
@@ -516,61 +751,109 @@ function IdeaDetail({
 
   async function handleGrow() {
     setGrowing(true);
+
     try {
-      const pack = await growIdea({ data: { transcript: idea!.transcript, topic: idea!.topic } });
+      const pack = await growIdea({
+        data: {
+          transcript: idea!.transcript,
+          topic: idea!.topic,
+        },
+      });
+
       const { error } = await supabase
         .from("ideas")
-        .update({ status: "grow", dev_pack: pack as never })
+        .update({
+          status: "grow",
+          dev_pack: pack as never,
+        })
         .eq("id", idea!.id);
+
       if (error) throw error;
-      toast.success("Baby cooked up a plan, daddy.");
+
+      toast.success(
+        "Baby cooked up a plan, daddy.",
+      );
+
       onChanged();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Couldn't grow that one.");
+      toast.error(
+        e instanceof Error
+          ? e.message
+          : "Couldn't grow that one.",
+      );
     } finally {
       setGrowing(false);
     }
   }
 
   async function handleDelete() {
-    const { error } = await supabase.from("ideas").delete().eq("id", idea!.id);
-    if (error) toast.error(error.message);
-    else {
-      onChanged();
-      onClose();
+    const { error } = await supabase
+      .from("ideas")
+      .delete()
+      .eq("id", idea!.id);
+
+    if (error) {
+      toast.error(error.message);
+      return;
     }
+
+    onChanged();
+    onClose();
   }
 
   async function handleSaveText() {
-    if (editText.trim() && editText !== idea!.transcript) {
-      await update({ transcript: editText.trim() });
+    if (
+      editText.trim() &&
+      editText !== idea!.transcript
+    ) {
+      await update({
+        transcript: editText.trim(),
+      });
     }
   }
 
   const meta = STATUS_META[idea.status];
 
   return (
-    <Dialog open={!!idea} onOpenChange={(o) => !o && onClose()}>
+    <Dialog
+      open={!!idea}
+      onOpenChange={(o) =>
+        !o && onClose()
+      }
+    >
       <DialogContent className="max-h-[90vh] overflow-y-auto bg-card sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl">Idea</DialogTitle>
+          <DialogTitle className="font-display text-2xl">
+            Idea
+          </DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider", meta.chipCls)}>
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+              meta.chipCls,
+            )}
+          >
             {meta.label}
           </span>
+
           <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
             {idea.topic}
           </span>
+
           <span className="ml-auto text-[10px] uppercase tracking-wider text-muted-foreground">
-            {new Date(idea.created_at).toLocaleString()}
+            {new Date(
+              idea.created_at,
+            ).toLocaleString()}
           </span>
         </div>
 
         <Textarea
           value={editText}
-          onChange={(e) => setEditText(e.target.value)}
+          onChange={(e) =>
+            setEditText(e.target.value)
+          }
           onBlur={handleSaveText}
           rows={5}
           className="bg-background"
@@ -580,16 +863,22 @@ function IdeaDetail({
           {STATUS_ORDER.map((s) => {
             const m = STATUS_META[s];
             const active = s === idea.status;
+
             return (
               <button
                 key={s}
                 disabled={saving || active}
-                onClick={() => changeStatus(s)}
+                onClick={() =>
+                  changeStatus(s)
+                }
                 className={cn(
                   "rounded-lg border px-3 py-2 text-sm font-medium transition",
                   active
-                    ? cn(m.cls, "border-primary text-foreground")
-                    : "border-border/60 bg-background text-muted-foreground hover:text-foreground"
+                    ? cn(
+                        m.cls,
+                        "border-primary text-foreground",
+                      )
+                    : "border-border/60 bg-background text-muted-foreground hover:text-foreground",
                 )}
               >
                 {m.label}
@@ -600,44 +889,97 @@ function IdeaDetail({
 
         <div className="flex flex-wrap gap-2">
           {idea.status === "grow" && (
-            <Button variant="outline" size="sm" onClick={handleGrow} disabled={growing}>
-              {growing ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Sparkles className="mr-1 h-3 w-3" />}
-              {idea.dev_pack ? "Re-grow" : "Grow this"}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGrow}
+              disabled={growing}
+            >
+              {growing ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <Sparkles className="mr-1 h-3 w-3" />
+              )}
+
+              {idea.dev_pack
+                ? "Re-grow"
+                : "Grow this"}
             </Button>
           )}
-          <Button variant="ghost" size="sm" className="ml-auto text-destructive" onClick={handleDelete}>
-            <Trash2 className="mr-1 h-3 w-3" /> Delete
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto text-destructive"
+            onClick={handleDelete}
+          >
+            <Trash2 className="mr-1 h-3 w-3" />
+            Delete
           </Button>
         </div>
 
-        {idea.dev_pack && <DevPackView pack={idea.dev_pack} />}
+        {idea.dev_pack && (
+          <DevPackView pack={idea.dev_pack} />
+        )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function DevPackView({ pack }: { pack: DevPack }) {
+function DevPackView({
+  pack,
+}: {
+  pack: DevPack;
+}) {
   return (
     <div className="space-y-4 rounded-xl border border-grow/40 bg-grow/5 p-4">
       <div className="flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-grow" />
-        <h3 className="font-display text-lg">Baby&apos;s plan</h3>
+
+        <h3 className="font-display text-lg">
+          Baby&apos;s plan
+        </h3>
       </div>
-      <PackList title="Next steps" items={pack.next_steps} />
-      <PackList title="Key questions" items={pack.key_questions} />
-      <PackList title="Risks" items={pack.risks} />
+
+      <PackList
+        title="Next steps"
+        items={pack.next_steps}
+      />
+
+      <PackList
+        title="Key questions"
+        items={pack.key_questions}
+      />
+
+      <PackList
+        title="Risks"
+        items={pack.risks}
+      />
     </div>
   );
 }
 
-function PackList({ title, items }: { title: string; items: string[] }) {
+function PackList({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
   if (!items?.length) return null;
+
   return (
     <div>
-      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {title}
+      </p>
+
       <ul className="space-y-1 text-sm text-foreground">
         {items.map((it, i) => (
-          <li key={i} className="flex gap-2">
+          <li
+            key={i}
+            className="flex gap-2"
+          >
             <span className="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-accent" />
             <span>{it}</span>
           </li>

@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useQuery,
-  useMutation,
   useQueryClient,
   QueryClient,
   QueryClientProvider,
@@ -23,11 +22,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useDictation } from "@/hooks/use-dictation";
-import {
-  classifyIdea,
-  growIdea,
-  type DevPack,
-} from "@/server/baby.functions";
+import { growIdea, type DevPack } from "@/server/baby.functions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,8 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { playSting } from "@/lib/stings";
-import { BabyMood, pingBaby } from "@/components/baby-mood";
+import { BabyMood } from "@/components/baby-mood";
 import {
   BabyChatButton,
   BabyChatDrawer,
@@ -67,18 +61,6 @@ type Idea = {
   created_at: string;
   updated_at: string;
 };
-
-async function getCurrentUserId() {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error) throw error;
-  if (!user) throw new Error("Baby lost your login. Sign in again.");
-
-  return user.id;
-}
 
 const STATUS_META: Record<
   Status,
@@ -124,33 +106,26 @@ const STATUS_ORDER: Status[] = [
 
 function BabyApp() {
   const queryClient = useQueryClient();
-
   const [openIdea, setOpenIdea] = useState<Idea | null>(null);
   const [topicFilter, setTopicFilter] = useState<string>("all");
   const [chatOpen, setChatOpen] = useState(false);
 
   const { data: ideas = [], isLoading } = useQuery({
     queryKey: ["ideas"],
-
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ideas")
         .select("*")
-        .order("created_at", {
-          ascending: false,
-        });
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-
       return (data ?? []) as unknown as Idea[];
     },
   });
 
   const topics = useMemo(() => {
     const s = new Set<string>();
-
     ideas.forEach((i) => s.add(i.topic));
-
     return Array.from(s).sort();
   }, [ideas]);
 
@@ -163,16 +138,12 @@ function BabyApp() {
   );
 
   const refresh = () =>
-    queryClient.invalidateQueries({
-      queryKey: ["ideas"],
-    });
+    queryClient.invalidateQueries({ queryKey: ["ideas"] });
 
   return (
     <div className="min-h-screen pb-44">
       <BabyMood />
-
       <Header />
-
       <QuickTiles />
 
       <div className="sticky top-0 z-10 -mt-px border-b border-border/40 bg-background/85 px-4 py-3 backdrop-blur">
@@ -207,10 +178,7 @@ function BabyApp() {
         ) : (
           <div className="space-y-6">
             {STATUS_ORDER.map((s) => {
-              const items = visible.filter(
-                (i) => i.status === s,
-              );
-
+              const items = visible.filter((i) => i.status === s);
               if (items.length === 0) return null;
 
               return (
@@ -226,7 +194,7 @@ function BabyApp() {
         )}
       </main>
 
-      <CaptureBar onSaved={refresh} />
+      <CaptureBar />
 
       <IdeaDetail
         idea={openIdea}
@@ -269,12 +237,11 @@ function Header() {
       />
 
       <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.4em] text-primary flicker">
-        Baby&apos;s Killer Notepad
+        Baby&apos;s Killer Notebook
       </p>
 
       <p className="mt-2 text-sm text-muted-foreground">
-        Hold the mic. Spill it, daddy. Baby&apos;ll tuck it
-        away for ya.
+        Hold the mic. Talk to Baby. She&apos;ll figure out what you need.
       </p>
     </header>
   );
@@ -292,10 +259,7 @@ function QuickTiles() {
         </div>
 
         <div>
-          <div className="font-display text-base text-foreground">
-            Calendar
-          </div>
-
+          <div className="font-display text-base text-foreground">Calendar</div>
           <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
             Gigs &amp; reminders
           </div>
@@ -311,10 +275,7 @@ function QuickTiles() {
         </div>
 
         <div>
-          <div className="font-display text-base text-foreground">
-            Brain
-          </div>
-
+          <div className="font-display text-base text-foreground">Brain</div>
           <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
             What Baby remembers
           </div>
@@ -363,34 +324,16 @@ function Column({
     <section>
       <div className="mb-2 flex items-baseline justify-between px-1">
         <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              "inline-block h-2 w-2 rounded-full",
-              meta.chipCls,
-            )}
-          />
-
-          <h2 className="font-display text-lg text-foreground">
-            {meta.label}
-          </h2>
-
-          <span className="text-xs text-muted-foreground">
-            {meta.tagline}
-          </span>
+          <span className={cn("inline-block h-2 w-2 rounded-full", meta.chipCls)} />
+          <h2 className="font-display text-lg text-foreground">{meta.label}</h2>
+          <span className="text-xs text-muted-foreground">{meta.tagline}</span>
         </div>
-
-        <span className="text-xs text-muted-foreground">
-          {ideas.length}
-        </span>
+        <span className="text-xs text-muted-foreground">{ideas.length}</span>
       </div>
 
       <div className="space-y-2">
         {ideas.map((i) => (
-          <IdeaCard
-            key={i.id}
-            idea={i}
-            onClick={() => onOpen(i)}
-          />
+          <IdeaCard key={i.id} idea={i} onClick={() => onOpen(i)} />
         ))}
       </div>
     </section>
@@ -428,15 +371,10 @@ function IdeaCard({
           {idea.topic}
         </span>
 
-        {idea.dev_pack && (
-          <Sparkles className="h-3 w-3 text-accent" />
-        )}
+        {idea.dev_pack && <Sparkles className="h-3 w-3 text-accent" />}
       </div>
 
-      <p className="line-clamp-3 text-sm text-foreground">
-        {idea.transcript}
-      </p>
-
+      <p className="line-clamp-3 text-sm text-foreground">{idea.transcript}</p>
       <p className="mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
         {new Date(idea.created_at).toLocaleString()}
       </p>
@@ -456,83 +394,42 @@ function EmptyState() {
       </h3>
 
       <p className="mt-2 text-sm text-muted-foreground">
-        Press and hold the big green button. Whisper
-        somethin&apos; wicked. Baby&apos;ll handle the rest.
+        Press and hold the big green button. Talk to Baby. She&apos;ll handle the rest.
       </p>
     </div>
   );
 }
 
-function CaptureBar({
-  onSaved,
-}: {
-  onSaved: () => void;
-}) {
+function CaptureBar() {
   const dictation = useDictation();
-
   const [text, setText] = useState("");
-  const [pending, setPending] = useState(false);
   const [showText, setShowText] = useState(false);
-
   const holdActiveRef = useRef(false);
   const pressStartTsRef = useRef(0);
+  const draftIdRef = useRef(0);
 
   const liveText = (text || dictation.interim).trim();
 
-  async function saveIdea(transcript: string) {
-    if (!transcript.trim()) return;
+  function handToBaby(transcript: string) {
+    const clean = transcript.trim();
+    if (!clean) return;
 
-    setPending(true);
-    pingBaby("thinking", "");
+    draftIdRef.current += 1;
 
-    try {
-      const ownerId = await getCurrentUserId();
-
-      const cls = await classifyIdea({
-        data: {
-          transcript,
+    window.dispatchEvent(
+      new CustomEvent("baby:voice-draft", {
+        detail: {
+          id: Date.now() * 1000 + draftIdRef.current,
+          text: clean,
         },
-      });
+      }),
+    );
 
-      const { error } = await supabase.from("ideas").insert({
-        owner_id: ownerId,
-        transcript,
-        status: cls.status,
-        topic: cls.topic,
-      });
-
-      if (error) throw error;
-
-      const reply =
-        cls.baby_reply || "Tucked it away, daddy.";
-
-      onSaved();
-
-      playSting(cls.status);
-      pingBaby(cls.status, reply);
-
-      setText("");
-      setShowText(false);
-    } catch (e) {
-      console.error(e);
-
-      pingBaby("idle", "");
-
-      toast.error(
-        e instanceof Error
-          ? e.message
-          : "Baby chipped a nail. Try again, sugar britches.",
-      );
-    } finally {
-      setPending(false);
-    }
+    setText("");
+    setShowText(false);
   }
 
-  function handlePressStart(
-    e: React.PointerEvent<HTMLButtonElement>,
-  ) {
-    if (pending) return;
-
+  function handlePressStart(e: React.PointerEvent<HTMLButtonElement>) {
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
@@ -549,9 +446,7 @@ function CaptureBar({
     }
   }
 
-  function handlePressEnd(
-    e: React.PointerEvent<HTMLButtonElement>,
-  ) {
+  function handlePressEnd(e: React.PointerEvent<HTMLButtonElement>) {
     if (!holdActiveRef.current) return;
 
     holdActiveRef.current = false;
@@ -562,16 +457,11 @@ function CaptureBar({
       // noop
     }
 
-    const heldMs =
-      Date.now() - pressStartTsRef.current;
+    const heldMs = Date.now() - pressStartTsRef.current;
 
     if (heldMs < 250) {
       dictation.stop();
-
-      toast(
-        "Hold the button longer, daddy — keep it pressed while you talk.",
-      );
-
+      toast("Hold the button longer, daddy — keep it pressed while you talk.");
       return;
     }
 
@@ -579,7 +469,7 @@ function CaptureBar({
       const result = dictation.stop();
 
       if (result) {
-        saveIdea(result);
+        handToBaby(result);
       } else {
         toast("Didn't catch that one, daddy. Try again.");
       }
@@ -608,7 +498,7 @@ function CaptureBar({
             <Textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Type your idea..."
+              placeholder="Type to Baby..."
               rows={2}
               className="flex-1 resize-none bg-card"
             />
@@ -616,15 +506,11 @@ function CaptureBar({
             <Button
               type="button"
               size="icon"
-              disabled={!text.trim() || pending}
-              onClick={() => saveIdea(text)}
+              disabled={!text.trim()}
+              onClick={() => handToBaby(text)}
               className="h-auto"
             >
-              {pending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
+              <Send className="h-4 w-4" />
             </Button>
           </div>
         )}
@@ -641,7 +527,6 @@ function CaptureBar({
 
           <button
             type="button"
-            disabled={pending}
             onPointerDown={handlePressStart}
             onPointerUp={handlePressEnd}
             onPointerCancel={handlePressEnd}
@@ -649,42 +534,30 @@ function CaptureBar({
             className={cn(
               "relative flex h-20 w-20 select-none items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-glow)] transition",
               dictation.listening && "recording-pulse",
-              pending && "opacity-60",
             )}
             style={{
               touchAction: "none",
               backgroundImage: "var(--gradient-toxic)",
             }}
-            aria-label="Hold to dictate"
+            aria-label="Hold to dictate to Baby"
           >
-            {pending ? (
-              <Loader2
-                className="h-8 w-8 animate-spin"
-                strokeWidth={2.5}
-              />
-            ) : dictation.listening ? (
+            {dictation.listening ? (
               <Square
                 className="h-8 w-8"
                 strokeWidth={2.5}
                 fill="currentColor"
               />
             ) : (
-              <Mic
-                className="h-9 w-9"
-                strokeWidth={2.5}
-              />
+              <Mic className="h-9 w-9" strokeWidth={2.5} />
             )}
           </button>
 
-          <div
-            className="w-10"
-            aria-hidden
-          />
+          <div className="w-10" aria-hidden />
         </div>
 
         <p className="mt-2 text-center text-[11px] text-muted-foreground">
           {dictation.supported
-            ? "Hold the button — speak — let go to save"
+            ? "Hold the button — speak — let go to talk to Baby"
             : "Voice not supported on this browser — tap + to type"}
         </p>
       </div>
@@ -706,9 +579,7 @@ function IdeaDetail({
   const [growing, setGrowing] = useState(false);
 
   useEffect(() => {
-    if (idea) {
-      setEditText(idea.transcript);
-    }
+    if (idea) setEditText(idea.transcript);
   }, [idea]);
 
   if (!idea) return null;
@@ -723,26 +594,18 @@ function IdeaDetail({
         .eq("id", idea!.id);
 
       if (error) throw error;
-
       onChanged();
     } catch (e) {
-      toast.error(
-        e instanceof Error ? e.message : "Save failed",
-      );
+      toast.error(e instanceof Error ? e.message : "Save failed");
     } finally {
       setSaving(false);
     }
   }
 
   async function changeStatus(newStatus: Status) {
-    await update({
-      status: newStatus,
-    });
+    await update({ status: newStatus });
 
-    if (
-      newStatus === "grow" &&
-      !idea!.dev_pack
-    ) {
+    if (newStatus === "grow" && !idea!.dev_pack) {
       await handleGrow();
     } else {
       onClose();
@@ -770,16 +633,11 @@ function IdeaDetail({
 
       if (error) throw error;
 
-      toast.success(
-        "Baby cooked up a plan, daddy.",
-      );
-
+      toast.success("Baby cooked up a plan, daddy.");
       onChanged();
     } catch (e) {
       toast.error(
-        e instanceof Error
-          ? e.message
-          : "Couldn't grow that one.",
+        e instanceof Error ? e.message : "Couldn't grow that one.",
       );
     } finally {
       setGrowing(false);
@@ -802,30 +660,18 @@ function IdeaDetail({
   }
 
   async function handleSaveText() {
-    if (
-      editText.trim() &&
-      editText !== idea!.transcript
-    ) {
-      await update({
-        transcript: editText.trim(),
-      });
+    if (editText.trim() && editText !== idea!.transcript) {
+      await update({ transcript: editText.trim() });
     }
   }
 
   const meta = STATUS_META[idea.status];
 
   return (
-    <Dialog
-      open={!!idea}
-      onOpenChange={(o) =>
-        !o && onClose()
-      }
-    >
+    <Dialog open={!!idea} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto bg-card sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl">
-            Idea
-          </DialogTitle>
+          <DialogTitle className="font-display text-2xl">Idea</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -843,17 +689,13 @@ function IdeaDetail({
           </span>
 
           <span className="ml-auto text-[10px] uppercase tracking-wider text-muted-foreground">
-            {new Date(
-              idea.created_at,
-            ).toLocaleString()}
+            {new Date(idea.created_at).toLocaleString()}
           </span>
         </div>
 
         <Textarea
           value={editText}
-          onChange={(e) =>
-            setEditText(e.target.value)
-          }
+          onChange={(e) => setEditText(e.target.value)}
           onBlur={handleSaveText}
           rows={5}
           className="bg-background"
@@ -868,16 +710,11 @@ function IdeaDetail({
               <button
                 key={s}
                 disabled={saving || active}
-                onClick={() =>
-                  changeStatus(s)
-                }
+                onClick={() => changeStatus(s)}
                 className={cn(
                   "rounded-lg border px-3 py-2 text-sm font-medium transition",
                   active
-                    ? cn(
-                        m.cls,
-                        "border-primary text-foreground",
-                      )
+                    ? cn(m.cls, "border-primary text-foreground")
                     : "border-border/60 bg-background text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -901,9 +738,7 @@ function IdeaDetail({
                 <Sparkles className="mr-1 h-3 w-3" />
               )}
 
-              {idea.dev_pack
-                ? "Re-grow"
-                : "Grow this"}
+              {idea.dev_pack ? "Re-grow" : "Grow this"}
             </Button>
           )}
 
@@ -918,43 +753,23 @@ function IdeaDetail({
           </Button>
         </div>
 
-        {idea.dev_pack && (
-          <DevPackView pack={idea.dev_pack} />
-        )}
+        {idea.dev_pack && <DevPackView pack={idea.dev_pack} />}
       </DialogContent>
     </Dialog>
   );
 }
 
-function DevPackView({
-  pack,
-}: {
-  pack: DevPack;
-}) {
+function DevPackView({ pack }: { pack: DevPack }) {
   return (
     <div className="space-y-4 rounded-xl border border-grow/40 bg-grow/5 p-4">
       <div className="flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-grow" />
-
-        <h3 className="font-display text-lg">
-          Baby&apos;s plan
-        </h3>
+        <h3 className="font-display text-lg">Baby&apos;s plan</h3>
       </div>
 
-      <PackList
-        title="Next steps"
-        items={pack.next_steps}
-      />
-
-      <PackList
-        title="Key questions"
-        items={pack.key_questions}
-      />
-
-      <PackList
-        title="Risks"
-        items={pack.risks}
-      />
+      <PackList title="Next steps" items={pack.next_steps} />
+      <PackList title="Key questions" items={pack.key_questions} />
+      <PackList title="Risks" items={pack.risks} />
     </div>
   );
 }
@@ -976,10 +791,7 @@ function PackList({
 
       <ul className="space-y-1 text-sm text-foreground">
         {items.map((it, i) => (
-          <li
-            key={i}
-            className="flex gap-2"
-          >
+          <li key={i} className="flex gap-2">
             <span className="mt-1 inline-block h-1 w-1 shrink-0 rounded-full bg-accent" />
             <span>{it}</span>
           </li>

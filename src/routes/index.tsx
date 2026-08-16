@@ -410,7 +410,10 @@ function CaptureBar() {
 
   const liveText = (text || dictation.interim).trim();
 
-  function handToBaby(transcript: string) {
+  function handToBaby(
+    transcript: string,
+    source: "voice" | "text" = "voice",
+  ) {
     const clean = transcript.trim();
     if (!clean) return;
 
@@ -421,6 +424,7 @@ function CaptureBar() {
         detail: {
           id: Date.now() * 1000 + draftIdRef.current,
           text: clean,
+          source,
         },
       }),
     );
@@ -469,7 +473,7 @@ function CaptureBar() {
       const result = dictation.stop();
 
       if (result) {
-        handToBaby(result);
+        handToBaby(result, "voice");
       } else {
         toast("Didn't catch that one, daddy. Try again.");
       }
@@ -507,7 +511,7 @@ function CaptureBar() {
               type="button"
               size="icon"
               disabled={!text.trim()}
-              onClick={() => handToBaby(text)}
+              onClick={() => handToBaby(text, "text")}
               className="h-auto"
             >
               <Send className="h-4 w-4" />

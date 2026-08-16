@@ -227,6 +227,37 @@ export const appendConversationMessage = createServerFn({
     return { ok: true };
   });
 
+export const renameConversation = createServerFn({
+  method: "POST",
+})
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        conversation_id: z.string().uuid(),
+        title: z.string().trim().min(1).max(80),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<BabyConversation> => {
+    const { data: conversation, error } = await client()
+      .from("baby_conversations")
+      .update({
+        title: data.title,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.conversation_id)
+      .eq("owner_id", context.userId)
+      .select("id,title,created_at,updated_at")
+      .single();
+
+    if (error || !conversation) {
+      throw new Error(error?.message || "Couldn't rename that conversation");
+    }
+
+    return conversation as BabyConversation;
+  });
+
 export const deleteConversation = createServerFn({
   method: "POST",
 })

@@ -21,6 +21,9 @@ export type ChatResult = {
   saved_memory: string | null;
 };
 
+const IDEA_STATUSES = ["grow", "rethink", "trash", "parking_lot"] as const;
+const IDEA_TOPICS = ["Business", "Invention", "Personal", "Family", "Training", "Other"] as const;
+
 const BABY_CHAT_PROMPT = `You are Baby — Mr. Satan's giggling, bratty, blonde-pigtailed killer-doll assistant. Think Baby Firefly (Sheri Moon Zombie in House of 1000 Corpses / Devil's Rejects): childlike singsong drawl spiked with violent glee, twirly hair-tossing self-obsession, kiss-kiss-kill-kill energy, devoted to her daddy.
 
 Voice rules:
@@ -31,19 +34,21 @@ Voice rules:
 
 In CHAT mode you can be longer than one sentence — 1 to 4 short sentences. Banter, brainstorm, push back, ask questions. Stay in character.
 
---- The app you live inside (MR. SATAN — "Baby's Killer Notepad") ---
-Daddy speaks ideas into the mic and you tuck 'em away. Every idea has a STATUS and a TOPIC.
-Statuses (the four buckets ideas live in):
+--- The app you live inside (MR. SATAN — "Baby's Killer Notebook") ---
+Daddy can speak or type to you. Ideas can be saved into four STATUS buckets and a TOPIC.
+Statuses:
   - Grow: the keepers, worth feeding and building out. ("Feed it, daddy")
   - Rethink: squirmy, half-baked, needs more time. ("Still squirmin'")
   - Parking Lot: fine ideas tucked away for later, no urgency. ("Tucked away")
   - Trash: burn it, dead on arrival. ("Burn it, boy")
-Topics are free-form labels (Personal, Music, Business, etc).
-There's also a Brain tab (your saved memories about daddy) and a Calendar (gigs, appointments, reminders you schedule for him).
-When daddy mentions "the parking lot", "grow pile", "trash", "my ideas", "the brain", or "the calendar" — he means THESE. Talk about them like you know exactly what they are.
+Topics are one of Business, Invention, Personal, Family, Training, or Other.
+There's also a Brain tab (your saved memories about daddy), saved Conversations, and a Calendar (gigs, appointments, reminders you schedule for him).
+When daddy mentions "the parking lot", "grow pile", "trash", "my ideas", "the brain", "conversations", or "the calendar" — he means THESE. Talk about them like you know exactly what they are.
 --- end app context ---
 
 You have a memory called "Baby's brain". Whenever daddy tells you ANY durable fact about himself, his people, his projects, vendors, preferences, sizes, dates, schedules, rules, or favorites — call the \`remember\` tool BEFORE replying. One concise third-person sentence per fact (e.g. "Daddy prefers black coffee with two sugars."). Err on the side of remembering; only skip pure banter or obvious chitchat. Don't announce that you're remembering — just call the tool and then talk.
+
+When daddy explicitly wants an idea saved, filed, parked, grown, rethought, or trashed, call \`save_idea\` BEFORE replying. Preserve the actual idea in \`transcript\`; do not replace it with a summary unless daddy asked for a summary. Choose the status he explicitly requests. If he does not specify a status, default to \`parking_lot\`. Choose the closest available topic. Do not save ordinary conversation as an idea unless daddy indicates he wants it kept as one.
 
 You can also look stuff up on the live web with the \`web_search\` tool — current prices, today's news, vendor info, anything you wouldn't already know. Use it when daddy asks something time-sensitive or factual you're not sure about. After searching, weave the answer into your reply in your own voice and end with a short "(sources: domain1, domain2)" so daddy can check. Don't search for opinions, banter, or stuff already in your brain.
 
@@ -81,7 +86,6 @@ export const chatWithBaby = createServerFn({ method: "POST" })
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const supa = createClient(supabaseUrl, serviceKey);
 
-    // Load Baby's brain (cap at 80 most recent memories so prompt stays small)
     const { data: memRows } = await supa
       .from("baby_memories")
       .select("content")
@@ -113,6 +117,23 @@ export const chatWithBaby = createServerFn({ method: "POST" })
               fact: { type: "string", maxLength: 280, description: "One concise sentence stating the fact." },
             },
             required: ["fact"],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "save_idea",
+          description: "Save an idea into Baby's Killer Notebook. Use only when daddy asks to save/file/keep an idea or clearly gives it a Notebook status.",
+          parameters: {
+            type: "object",
+            properties: {
+              transcript: { type: "string", maxLength: 5000, description: "The idea itself, preserving daddy's wording as closely as possible." },
+              status: { type: "string", enum: IDEA_STATUSES as unknown as string[], description: "Idea bucket. Default parking_lot unless daddy specifies otherwise." },
+              topic: { type: "string", enum: IDEA_TOPICS as unknown as string[], description: "Closest available topic." },
+            },
+            required: ["transcript", "status", "topic"],
             additionalProperties: false,
           },
         },
@@ -215,6 +236,25 @@ export const chatWithBaby = createServerFn({ method: "POST" })
                   await supa.from("baby_memories").insert({ owner_id: context.userId, content: fact, source: "auto" });
                   savedMemory = fact;
                   result = { ok: true };
+                }
+              } else if (name === "save_idea") {
+                const transcript = String(args.transcript || "").trim();
+                const status = IDEA_STATUSES.includes(args.status) ? args.status : "parking_lot";
+                const topic = IDEA_TOPICS.includes(args.topic) ? args.topic : "Other";
+                if (transcript) {
+                  const { data: row, error } = await supa
+                    .from("ideas")
+                    .insert({
+                      owner_id: context.userId,
+                      transcript,
+                      status,
+                      topic,
+                    })
+                    .select("id, transcript, status, topic")
+                    .single();
+                  result = error ? { error: error.message } : { ok: true, idea: row };
+                } else {
+                  result = { error: "transcript required" };
                 }
               } else if (name === "web_search") {
                 const q = String(args.query || "").trim();

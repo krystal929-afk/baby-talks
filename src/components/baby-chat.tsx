@@ -64,6 +64,7 @@ import {
   listConversations,
   loadConversation,
   renameConversation,
+  type BabyConversation,
 } from "@/server/conversations.functions";
 
 const ACTIVE_CONVERSATION_KEY = "baby-active-conversation-id";
@@ -81,6 +82,102 @@ type Props = {
   dictatedDraft?: BabyChatDraft | null;
   onDictatedDraftConsumed?: (id: number) => void;
 };
+
+type DraftRoute =
+  | { kind: "current" }
+  | { kind: "new" }
+  | { kind: "existing"; conversation: BabyConversation }
+  | { kind: "ambiguous"; matches: BabyConversation[] };
+
+const ROUTING_STOP_WORDS = new Set([
+  "chat",
+  "conversation",
+  "about",
+  "with",
+  "this",
+  "that",
+  "from",
+  "into",
+  "the",
+  "and",
+  "for",
+]);
+
+function normalizeRoutingText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function titleMatchScore(text: string, title: string) {
+  const normalizedText = normalizeRoutingText(text);
+  const normalizedTitle = normalizeRoutingText(title);
+
+  if (!normalizedTitle) return 0;
+  if (normalizedText.includes(normalizedTitle)) return 1;
+
+  const tokens = normalizedTitle
+    .split(" ")
+    .filter(
+      (token) =>
+        token.length >= 3 &&
+        !ROUTING_STOP_WORDS.has(token),
+    );
+
+  if (!tokens.length) return 0;
+
+  const hits = tokens.filter((token) =>
+    normalizedText.includes(token),
+  );
+
+  if (!hits.length) return 0;
+
+  const ratio = hits.length / tokens.length;
+  const distinctiveHit = hits.some((token) => token.length >= 5);
+
+  return Math.min(0.95, ratio + (distinctiveHit ? 0.15 : 0));
+}
+
+function resolveDraftRoute(
+  text: string,
+  conversations: BabyConversation[],
+): DraftRoute {
+  const normalized = normalizeRoutingText(text);
+
+  if (
+    /\b(new|fresh) (chat|conversation)\b/.test(normalized) ||
+    /\b(start|open) (a )?(new|fresh) (chat|conversation)\b/.test(normalized)
+  ) {
+    return { kind: "new" };
+  }
+
+  const scored = conversations
+    .map((conversation) => ({
+      conversation,
+      score: titleMatchScore(text, conversation.title),
+    }))
+    .filter((item) => item.score >= 0.6)
+    .sort((a, b) => b.score - a.score);
+
+  if (!scored.length) return { kind: "current" };
+
+  const best = scored[0];
+  const second = scored[1];
+
+  if (second && best.score - second.score < 0.25) {
+    return {
+      kind: "ambiguous",
+      matches: scored.slice(0, 3).map((item) => item.conversation),
+    };
+  }
+
+  return {
+    kind: "existing",
+    conversation: best.conversation,
+  };
+}
 
 export function BabyChatDrawer({
   open,
@@ -184,6 +281,7 @@ function ChatPane({
   const dictationHoldRef = useRef(false);
   const dictationStartRef = useRef(0);
   const dictationBaseRef = useRef("");
+  const handledDraftRef = useRef<number | null>(null);
 
   const setActiveConversation = useCallback((id: string | null) => {
     setConversationId(id);
@@ -202,19 +300,6 @@ function ChatPane({
     const saved = window.localStorage.getItem(ACTIVE_CONVERSATION_KEY);
     if (saved) setConversationId(saved);
   }, []);
-
-  useEffect(() => {
-    const text = dictatedDraft?.text.trim();
-    if (!text || !dictatedDraft) return;
-
-    setInput(text);
-    onDictatedDraftConsumed?.(dictatedDraft.id);
-
-    window.requestAnimationFrame(() => {
-      inputRef.current?.focus();
-      inputRef.current?.setSelectionRange(text.length, text.length);
-    });
-  }, [dictatedDraft?.id, dictatedDraft?.text, onDictatedDraftConsumed]);
 
   const {
     data: conversations = [],
@@ -239,6 +324,51 @@ function ChatPane({
     conversations,
     conversationsFetched,
     conversationId,
+    setActiveConversation,
+  ]);
+
+  useEffect(() => {
+    const text = dictatedDraft?.text.trim();
+
+    if (
+      !text ||
+      !dictatedDraft ||
+      !conversationsFetched ||
+      handledDraftRef.current === dictatedDraft.id
+    ) {
+      return;
+    }
+
+    handledDraftRef.current = dictatedDraft.id;
+    const route = resolveDraftRoute(text, conversations);
+
+    if (route.kind === "new") {
+      setActiveConversation(null);
+      setMessages([]);
+    } else if (route.kind === "existing") {
+      setActiveConversation(route.conversation.id);
+      setMessages([]);
+      toast(`Opening “${route.conversation.title}”.`);
+    } else if (route.kind === "ambiguous") {
+      toast(
+        `I found more than one matching conversation: ${route.matches
+          .map((conversation) => conversation.title)
+          .join(", ")}. Pick one before you send.`,
+      );
+    }
+
+    setInput(text);
+    onDictatedDraftConsumed?.(dictatedDraft.id);
+
+    window.requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(text.length, text.length);
+    });
+  }, [
+    dictatedDraft,
+    conversationsFetched,
+    conversations,
+    onDictatedDraftConsumed,
     setActiveConversation,
   ]);
 

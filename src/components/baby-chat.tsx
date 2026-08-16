@@ -78,6 +78,7 @@ const VOICE_DRAFT_EVENT = "baby:voice-draft";
 export type BabyChatDraft = {
   id: number;
   text: string;
+  source?: "voice" | "text";
 };
 
 type Props = {
@@ -209,6 +210,7 @@ export function BabyChatDrawer({
       setVoiceDraft({
         id: Number(detail.id) || Date.now(),
         text,
+        source: detail.source === "text" ? "text" : "voice",
       });
       onOpenChange(true);
     };
@@ -370,7 +372,7 @@ function ChatPane({
     }
 
     setInput(text);
-    setInputOrigin("voice");
+    setInputOrigin(dictatedDraft.source === "text" ? "text" : "voice");
     onDictatedDraftConsumed?.(dictatedDraft.id);
 
     window.requestAnimationFrame(() => {

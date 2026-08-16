@@ -43,6 +43,11 @@ import {
 } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useDictation } from "@/hooks/use-dictation";
+import {
+  createSpeechHandle,
+  speak,
+  type SpeechHandle,
+} from "@/lib/speak";
 
 import {
   chatWithBaby,
@@ -88,6 +93,12 @@ type DraftRoute =
   | { kind: "new" }
   | { kind: "existing"; conversation: BabyConversation }
   | { kind: "ambiguous"; matches: BabyConversation[] };
+
+type SendRequest = {
+  text: string;
+  spoken: boolean;
+  speechHandle?: SpeechHandle;
+};
 
 const ROUTING_STOP_WORDS = new Set([
   "chat",
@@ -274,6 +285,7 @@ function ChatPane({
 
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
+  const [inputOrigin, setInputOrigin] = useState<"text" | "voice">("text");
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -358,6 +370,7 @@ function ChatPane({
     }
 
     setInput(text);
+    setInputOrigin("voice");
     onDictatedDraftConsumed?.(dictatedDraft.id);
 
     window.requestAnimationFrame(() => {
@@ -437,7 +450,7 @@ function ChatPane({
   });
 
   const send = useMutation({
-    mutationFn: async (text: string) => {
+    mutationFn: async ({ text, spoken, speechHandle }: SendRequest) => {
       const next: ChatMsg[] = [
         ...messages,
         { role: "user", content: text },
@@ -478,6 +491,14 @@ function ChatPane({
 
       setMessages(finalMessages);
 
+      if (spoken) {
+        void speak(res.reply, speechHandle).then((voiceResult) => {
+          if (voiceResult.error) {
+            console.warn("Baby voice reply issue:", voiceResult.error);
+          }
+        });
+      }
+
       try {
         await appendConversationMessage({
           data: {
@@ -512,8 +533,12 @@ function ChatPane({
     const text = input.trim();
     if (!text || send.isPending) return;
 
+    const spoken = inputOrigin === "voice";
+    const speechHandle = spoken ? createSpeechHandle() : undefined;
+
     setInput("");
-    send.mutate(text);
+    setInputOrigin("text");
+    send.mutate({ text, spoken, speechHandle });
   };
 
   const onSubmit = (e: FormEvent) => {
@@ -527,6 +552,7 @@ function ChatPane({
     setActiveConversation(null);
     setMessages([]);
     setInput("");
+    setInputOrigin("text");
   };
 
   const selectConversation = (id: string) => {
@@ -601,6 +627,7 @@ function ChatPane({
       .trim();
 
     setInput(combined);
+    setInputOrigin("voice");
     window.requestAnimationFrame(() => inputRef.current?.focus());
   };
 
@@ -736,7 +763,10 @@ function ChatPane({
         <Textarea
           ref={inputRef}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value);
+            if (!e.target.value.trim()) setInputOrigin("text");
+          }}
           placeholder={
             chatDictation.listening
               ? chatDictation.interim || "Listening…"

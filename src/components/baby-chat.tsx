@@ -67,6 +67,7 @@ import {
 } from "@/server/conversations.functions";
 
 const ACTIVE_CONVERSATION_KEY = "baby-active-conversation-id";
+const VOICE_DRAFT_EVENT = "baby:voice-draft";
 
 export type BabyChatDraft = {
   id: number;
@@ -88,6 +89,38 @@ export function BabyChatDrawer({
   dictatedDraft,
   onDictatedDraftConsumed,
 }: Props) {
+  const [voiceDraft, setVoiceDraft] = useState<BabyChatDraft | null>(null);
+
+  useEffect(() => {
+    const handleVoiceDraft = (event: Event) => {
+      const detail = (event as CustomEvent<BabyChatDraft>).detail;
+      const text = detail?.text?.trim();
+
+      if (!text) return;
+
+      setVoiceDraft({
+        id: Number(detail.id) || Date.now(),
+        text,
+      });
+      onOpenChange(true);
+    };
+
+    window.addEventListener(VOICE_DRAFT_EVENT, handleVoiceDraft);
+    return () => window.removeEventListener(VOICE_DRAFT_EVENT, handleVoiceDraft);
+  }, [onOpenChange]);
+
+  const activeDraft = dictatedDraft ?? voiceDraft;
+
+  const handleDraftConsumed = useCallback(
+    (id: number) => {
+      setVoiceDraft((current) =>
+        current?.id === id ? null : current,
+      );
+      onDictatedDraftConsumed?.(id);
+    },
+    [onDictatedDraftConsumed],
+  );
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -116,8 +149,8 @@ export function BabyChatDrawer({
           <TabsContent value="chat" className="flex-1 min-h-0 m-0">
             <ChatPane
               context={context}
-              dictatedDraft={dictatedDraft}
-              onDictatedDraftConsumed={onDictatedDraftConsumed}
+              dictatedDraft={activeDraft}
+              onDictatedDraftConsumed={handleDraftConsumed}
             />
           </TabsContent>
 
@@ -332,6 +365,7 @@ function ChatPane({
       qc.invalidateQueries({
         queryKey: ["baby_conversation", activeConversationId],
       });
+      qc.invalidateQueries({ queryKey: ["ideas"] });
 
       if (res.saved_memory) {
         toast.success("Baby tucked it in her brain", {

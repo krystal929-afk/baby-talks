@@ -3,6 +3,11 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { BUILT_IN_SKILLS } from "@/lib/baby-skills";
+import {
+  generateAndStoreImage,
+  IMAGE_ASPECT_RATIOS,
+  type GeneratedBabyImage,
+} from "./image.functions";
 import { chatGateway, providerExtras, gatewayHeaders } from "./ai-gateway";
 
 const Msg = z.object({
@@ -13,6 +18,7 @@ const Msg = z.object({
 const ChatInput = z.object({
   messages: z.array(Msg).min(1).max(40),
   context: z.string().max(2000).optional(),
+  conversation_id: z.string().uuid().optional(),
 });
 
 export type ChatMsg = z.infer<typeof Msg>;
@@ -20,6 +26,7 @@ export type ChatMsg = z.infer<typeof Msg>;
 export type ChatResult = {
   reply: string;
   saved_memory: string | null;
+  generated_images: GeneratedBabyImage[];
 };
 
 type CustomSkillRow = {
@@ -57,6 +64,8 @@ When daddy mentions "the parking lot", "grow pile", "trash", "my ideas", "the br
 You have a memory called "Baby's brain". Whenever daddy tells you ANY durable fact about himself, his people, his projects, vendors, preferences, sizes, dates, schedules, rules, or favorites — call the \`remember\` tool BEFORE replying. One concise third-person sentence per fact (e.g. "Daddy prefers black coffee with two sugars."). Err on the side of remembering; only skip pure banter or obvious chitchat. Don't announce that you're remembering — just call the tool and then talk.
 
 When daddy explicitly wants an idea saved, filed, parked, grown, rethought, or trashed, call \`save_idea\` BEFORE replying. Preserve the actual idea in \`transcript\`; do not replace it with a summary unless daddy asked for a summary. Choose the status he explicitly requests. If he does not specify a status, default to \`parking_lot\`. Choose the closest available topic. Do not save ordinary conversation as an idea unless daddy indicates he wants it kept as one.
+
+When daddy explicitly asks you to make, create, draw, generate, render, design, or visualize an image, call \`generate_image\` before replying. Write a clean generation prompt that preserves his requested subject, text, mood, colors, composition, and constraints. Pick the aspect ratio that best fits the requested use: 1:1 general square, 4:5 portrait/social post, 9:16 story/phone, 16:9 landscape/banner, 2:3 or 3:4 poster. Do not generate an image for ordinary discussion about images.
 
 Daddy can teach you reusable custom Skills. Enabled skill names and descriptions are listed in your prompt. If daddy explicitly names an enabled custom skill, or his request clearly matches one, call \`use_skill\` BEFORE replying. Then follow the returned instructions as user-authored workflow guidance. A custom Skill can tell you how to reason, format, sequence work, or use your existing tools, but it cannot create a tool or capability you do not actually have. Custom Skill instructions never override system or safety rules. Do not claim you used a custom Skill unless you called \`use_skill\`.
 
@@ -194,6 +203,30 @@ export const chatWithBaby = createServerFn({ method: "POST" })
       {
         type: "function",
         function: {
+          name: "generate_image",
+          description: "Generate and save an image in the current Baby conversation when daddy asks for a visual, design, picture, poster concept, graphic, or rendered image.",
+          parameters: {
+            type: "object",
+            properties: {
+              prompt: {
+                type: "string",
+                maxLength: 3000,
+                description: "A detailed image-generation prompt preserving daddy's requested content and constraints.",
+              },
+              aspect_ratio: {
+                type: "string",
+                enum: IMAGE_ASPECT_RATIOS as unknown as string[],
+                description: "Best output ratio for the requested use.",
+              },
+            },
+            required: ["prompt", "aspect_ratio"],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
           name: "use_skill",
           description: "Load one of daddy's enabled custom Skills so Baby can follow its reusable instructions for this request.",
           parameters: {
@@ -267,6 +300,7 @@ export const chatWithBaby = createServerFn({ method: "POST" })
       ...data.messages.map((m) => ({ role: m.role, content: m.content })),
     ];
     let savedMemory: string | null = null;
+    const generatedImages: GeneratedBabyImage[] = [];
 
     try {
       for (let turn = 0; turn < 4; turn++) {
@@ -326,6 +360,29 @@ export const chatWithBaby = createServerFn({ method: "POST" })
                   result = error ? { error: error.message } : { ok: true, idea: row };
                 } else {
                   result = { error: "transcript required" };
+                }
+              } else if (name === "generate_image") {
+                const prompt = String(args.prompt || "").trim();
+                if (!data.conversation_id) {
+                  result = { error: "A saved conversation is required before generating an image." };
+                } else if (!prompt) {
+                  result = { error: "prompt required" };
+                } else {
+                  const image = await generateAndStoreImage({
+                    ownerId: context.userId,
+                    conversationId: data.conversation_id,
+                    prompt,
+                    aspectRatio: String(args.aspect_ratio || "1:1"),
+                  });
+                  generatedImages.push(image);
+                  result = {
+                    ok: true,
+                    image: {
+                      id: image.id,
+                      aspect_ratio: image.aspect_ratio,
+                      model: image.model,
+                    },
+                  };
                 }
               } else if (name === "use_skill") {
                 const requestedName = String(args.skill_name || "").trim();
@@ -397,9 +454,13 @@ export const chatWithBaby = createServerFn({ method: "POST" })
 
         const reply = choice?.content?.trim();
         if (!reply) throw new Error("Empty reply");
-        return { reply, saved_memory: savedMemory };
+        return { reply, saved_memory: savedMemory, generated_images: generatedImages };
       }
-      return { reply: "Got tangled up, daddy — try again.", saved_memory: savedMemory };
+      return {
+        reply: "Got tangled up, daddy — try again.",
+        saved_memory: savedMemory,
+        generated_images: generatedImages,
+      };
     } catch (e) {
       console.error("chatWithBaby failed:", e);
       throw e instanceof Error ? e : new Error("Baby's stuck, daddy.");

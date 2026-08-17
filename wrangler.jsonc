@@ -15,8 +15,13 @@
     "required": [
       "SUPABASE_SERVICE_ROLE_KEY",
       "OPENROUTER_API_KEY",
-      "GEMINI_API_KEY"
+      "GEMINI_API_KEY",
+      "VAPID_PRIVATE_KEY"
     ]
+  },
+
+  "triggers": {
+    "crons": ["17 * * * *"]
   },
 
   "observability": {

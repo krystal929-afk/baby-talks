@@ -4,15 +4,72 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import { subscribePush, unsubscribePush } from "@/lib/push.functions";
 import { VAPID_PUBLIC_KEY, urlBase64ToUint8Array } from "@/lib/push-config";
 
 type State = "unsupported" | "denied" | "off" | "on" | "loading";
 
+function usesCurrentPushKey(subscription: PushSubscription) {
+  const current = subscription.options.applicationServerKey;
+  if (!current) return false;
+
+  const actual = new Uint8Array(current);
+  const expected = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+  if (actual.length !== expected.length) return false;
+
+  for (let i = 0; i < actual.length; i += 1) {
+    if (actual[i] !== expected[i]) return false;
+  }
+
+  return true;
+}
+
 export function PushToggle() {
   const [state, setState] = useState<State>("loading");
   const subFn = useServerFn(subscribePush);
   const unsubFn = useServerFn(unsubscribePush);
+
+  async function persistSubscription(sub: PushSubscription) {
+    const json = sub.toJSON() as {
+      endpoint?: string;
+      keys?: { p256dh?: string; auth?: string };
+    };
+
+    if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+      throw new Error("bad subscription");
+    }
+
+    await subFn({
+      data: {
+        endpoint: json.endpoint,
+        p256dh: json.keys.p256dh,
+        auth: json.keys.auth,
+      },
+    });
+  }
+
+  async function subscribeWithCurrentKey(reg: ServiceWorkerRegistration) {
+    const key = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: key.buffer.slice(
+        key.byteOffset,
+        key.byteOffset + key.byteLength,
+      ) as ArrayBuffer,
+    });
+    await persistSubscription(sub);
+    return sub;
+  }
+
+  async function sendDeliveryTest() {
+    const { data, error } = await supabase.functions.invoke("baby-push-dispatch", {
+      body: { mode: "test" },
+    });
+
+    if (error) throw error;
+    if (!data?.sent) throw new Error("Baby couldn't deliver the test ping.");
+  }
 
   useEffect(() => {
     (async () => {
@@ -21,12 +78,43 @@ export function PushToggle() {
         setState("unsupported");
         return;
       }
+
       try {
         const reg = await navigator.serviceWorker.register("/sw.js");
         await navigator.serviceWorker.ready;
-        if (Notification.permission === "denied") return setState("denied");
+
+        if (Notification.permission === "denied") {
+          setState("denied");
+          return;
+        }
+
         const existing = await reg.pushManager.getSubscription();
-        setState(existing ? "on" : "off");
+        if (!existing) {
+          setState("off");
+          return;
+        }
+
+        if (usesCurrentPushKey(existing)) {
+          setState("on");
+          return;
+        }
+
+        if (Notification.permission !== "granted") {
+          setState("off");
+          return;
+        }
+
+        setState("loading");
+        try {
+          await unsubFn({ data: { endpoint: existing.endpoint } });
+        } catch (error) {
+          console.warn("Couldn't remove old Baby push subscription", error);
+        }
+        await existing.unsubscribe();
+        await subscribeWithCurrentKey(reg);
+        setState("on");
+        await sendDeliveryTest();
+        toast.success("Baby reconnected notifications, Mr. S.");
       } catch (e) {
         console.error(e);
         setState("unsupported");
@@ -43,23 +131,12 @@ export function PushToggle() {
         toast.error("Baby needs permission to ping ya, daddy.");
         return;
       }
+
       const reg = await navigator.serviceWorker.ready;
-      const key = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: key.buffer.slice(key.byteOffset, key.byteOffset + key.byteLength) as ArrayBuffer,
-      });
-      const json = sub.toJSON() as { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
-      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) throw new Error("bad subscription");
-      await subFn({
-        data: {
-          endpoint: json.endpoint,
-          p256dh: json.keys.p256dh,
-          auth: json.keys.auth,
-        },
-      });
+      await subscribeWithCurrentKey(reg);
       setState("on");
       toast.success("Baby's got eyes on ya now, Mr. S.");
+      await sendDeliveryTest();
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Couldn't turn it on");
@@ -91,6 +168,7 @@ export function PushToggle() {
       </div>
     );
   }
+
   if (state === "denied") {
     return (
       <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-muted-foreground">

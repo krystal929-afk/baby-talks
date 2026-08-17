@@ -23,10 +23,12 @@ import {
   Send,
   Square,
   Trash2,
+  Wrench,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { BabyBubble } from "@/components/baby-bubble";
+import { BabySkillsPane } from "@/components/baby-skills-pane";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -244,7 +246,7 @@ export function BabyChatDrawer({
         </SheetHeader>
 
         <Tabs defaultValue="chat" className="flex-1 flex flex-col min-h-0">
-          <TabsList className="mx-4 mt-2 grid grid-cols-2">
+          <TabsList className="mx-4 mt-2 grid grid-cols-3">
             <TabsTrigger value="chat" className="gap-2">
               <MessageCircle className="size-4" />
               Chat
@@ -252,7 +254,12 @@ export function BabyChatDrawer({
 
             <TabsTrigger value="brain" className="gap-2">
               <Brain className="size-4" />
-              Baby&apos;s Brain
+              Brain
+            </TabsTrigger>
+
+            <TabsTrigger value="skills" className="gap-2">
+              <Wrench className="size-4" />
+              Skills
             </TabsTrigger>
           </TabsList>
 
@@ -266,6 +273,10 @@ export function BabyChatDrawer({
 
           <TabsContent value="brain" className="flex-1 min-h-0 m-0">
             <BrainPane />
+          </TabsContent>
+
+          <TabsContent value="skills" className="flex-1 min-h-0 m-0">
+            <BabySkillsPane />
           </TabsContent>
         </Tabs>
       </SheetContent>

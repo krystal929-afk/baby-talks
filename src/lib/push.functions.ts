@@ -9,7 +9,6 @@ const SubscribeSchema = z.object({
   endpoint: z.string().url().max(2000),
   p256dh: z.string().min(1).max(500),
   auth: z.string().min(1).max(500),
-  label: z.string().max(120).optional(),
 });
 
 function configurePush() {
@@ -30,8 +29,7 @@ export const subscribePush = createServerFn({ method: "POST" })
           endpoint: data.endpoint,
           p256dh: data.p256dh,
           auth: data.auth,
-          label: data.label ?? null,
-          last_used_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         },
         { onConflict: "owner_id,endpoint" }
       );
@@ -55,30 +53,39 @@ export const unsubscribePush = createServerFn({ method: "POST" })
 export const sendTestPush = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-  configurePush();
-  const { data: subs } = await supabaseAdmin.from("push_subscriptions").select("*").eq("owner_id", context.userId);
-  if (!subs || subs.length === 0) return { sent: 0 };
+    configurePush();
+    const { data: subs } = await supabaseAdmin
+      .from("push_subscriptions")
+      .select("*")
+      .eq("owner_id", context.userId);
 
-  const payload = JSON.stringify({
-    title: "Baby",
-    body: "Just makin' sure I can find you, daddy.",
-    url: "/calendar",
-    tag: "test",
-  });
+    if (!subs || subs.length === 0) return { sent: 0 };
 
-  let sent = 0;
-  for (const s of subs) {
-    try {
-      await webpush.sendNotification(
-        { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-        payload
-      );
-      sent++;
-    } catch (e: any) {
-      if (e?.statusCode === 404 || e?.statusCode === 410) {
-        await supabaseAdmin.from("push_subscriptions").delete().eq("owner_id", context.userId).eq("endpoint", s.endpoint);
+    const payload = JSON.stringify({
+      title: "Baby",
+      body: "Just makin' sure I can find you, daddy.",
+      url: "/calendar",
+      tag: "test",
+    });
+
+    let sent = 0;
+    for (const s of subs) {
+      try {
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          payload
+        );
+        sent++;
+      } catch (e: any) {
+        if (e?.statusCode === 404 || e?.statusCode === 410) {
+          await supabaseAdmin
+            .from("push_subscriptions")
+            .delete()
+            .eq("owner_id", context.userId)
+            .eq("endpoint", s.endpoint);
+        }
       }
     }
-  }
-  return { sent };
-});
+
+    return { sent };
+  });

@@ -80,6 +80,21 @@ function googleErrorMessage(body: string) {
   return body.trim().replace(/\s+/g, " ").slice(0, 500) || "Unknown Gemini error";
 }
 
+type InteractionContent = {
+  type?: string;
+  data?: string;
+  mime_type?: string;
+};
+
+type InteractionResponse = {
+  status?: string;
+  error?: { message?: string };
+  steps?: Array<{
+    type?: string;
+    content?: InteractionContent[];
+  }>;
+};
+
 async function requestGeminiImage({
   apiKey,
   model,
@@ -92,7 +107,7 @@ async function requestGeminiImage({
   aspectRatio: ImageAspectRatio;
 }) {
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(model)}:generateContent`,
+    "https://generativelanguage.googleapis.com/v1beta/interactions",
     {
       method: "POST",
       headers: {
@@ -100,19 +115,13 @@ async function requestGeminiImage({
         "x-goog-api-key": apiKey,
       },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          responseModalities: ["Image"],
-          responseFormat: {
-            image: {
-              aspectRatio,
-              imageSize: "1K",
-            },
-          },
+        model,
+        input: prompt,
+        response_format: {
+          type: "image",
+          mime_type: "image/jpeg",
+          aspect_ratio: aspectRatio,
+          image_size: "1K",
         },
       }),
     },
@@ -135,17 +144,25 @@ async function requestGeminiImage({
     throw new Error(`Gemini image error ${response.status}: ${providerMessage}`);
   }
 
-  return (await response.json()) as {
-    candidates?: Array<{
-      content?: {
-        parts?: Array<{
-          inlineData?: {
-            mimeType?: string;
-            data?: string;
-          };
-        }>;
-      };
-    }>;
+  const json = (await response.json()) as InteractionResponse;
+  const image = json.steps
+    ?.flatMap((step) => step.content ?? [])
+    .find((content) => content.type === "image" && content.data);
+
+  if (!image?.data) {
+    const detail = json.error?.message || `interaction status: ${json.status || "unknown"}`;
+    console.error("Gemini interaction returned no image", {
+      model,
+      aspectRatio,
+      status: json.status,
+      detail,
+    });
+    throw new Error(`Gemini returned no image (${detail})`);
+  }
+
+  return {
+    base64: image.data,
+    mimeType: image.mime_type || "image/jpeg",
   };
 }
 
@@ -185,26 +202,17 @@ export async function generateAndStoreImage({
     throw new Error("Conversation not found");
   }
 
-  const json = await requestGeminiImage({
+  const generated = await requestGeminiImage({
     apiKey,
     model,
     prompt: cleanPrompt,
     aspectRatio: ratio,
   });
 
-  const imagePart = json.candidates?.[0]?.content?.parts?.find(
-    (part) => part.inlineData?.data,
-  );
-
-  const base64 = imagePart?.inlineData?.data;
-  if (!base64) {
-    throw new Error("Gemini returned a successful response but no image data");
-  }
-
-  const mimeType = imagePart.inlineData?.mimeType || "image/png";
+  const mimeType = generated.mimeType;
   const extension = extensionForMime(mimeType);
   const storagePath = `${ownerId}/${conversationId}/${crypto.randomUUID()}.${extension}`;
-  const bytes = base64ToBytes(base64);
+  const bytes = base64ToBytes(generated.base64);
 
   const { error: uploadError } = await supabase.storage
     .from(IMAGE_BUCKET)

@@ -103,6 +103,19 @@ type SendRequest = {
   speechHandle?: SpeechHandle;
 };
 
+type ChatImage = {
+  id: string;
+  prompt: string;
+  mime_type: string;
+  aspect_ratio: string;
+  model: string;
+  url: string;
+};
+
+type DisplayChatMsg = ChatMsg & {
+  images?: ChatImage[];
+};
+
 const ROUTING_STOP_WORDS = new Set([
   "chat",
   "conversation",
@@ -296,7 +309,7 @@ function ChatPane({
   const qc = useQueryClient();
   const chatDictation = useDictation();
 
-  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [messages, setMessages] = useState<DisplayChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [inputOrigin, setInputOrigin] = useState<"text" | "voice">("text");
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -417,6 +430,7 @@ function ChatPane({
       loadedConversation.messages.map((message) => ({
         role: message.role,
         content: message.content,
+        images: message.images,
       })),
     );
   }, [loadedConversation]);
@@ -464,7 +478,7 @@ function ChatPane({
 
   const send = useMutation({
     mutationFn: async ({ text, spoken, speechHandle }: SendRequest) => {
-      const next: ChatMsg[] = [
+      const next: DisplayChatMsg[] = [
         ...messages,
         { role: "user", content: text },
       ];
@@ -494,12 +508,17 @@ function ChatPane({
         data: {
           messages: next,
           context,
+          conversation_id: activeConversationId,
         },
       });
 
-      const finalMessages: ChatMsg[] = [
+      const finalMessages: DisplayChatMsg[] = [
         ...next,
-        { role: "assistant", content: res.reply },
+        {
+          role: "assistant",
+          content: res.reply,
+          images: res.generated_images,
+        },
       ];
 
       setMessages(finalMessages);
@@ -518,6 +537,7 @@ function ChatPane({
             conversation_id: activeConversationId,
             role: "assistant",
             content: res.reply,
+            image_ids: res.generated_images.map((image) => image.id),
           },
         });
       } catch (e) {
@@ -752,11 +772,32 @@ function ChatPane({
           const isLast = i === messages.length - 1;
 
           return (
-            <div key={i} className="mr-auto max-w-[90%]">
+            <div key={i} className="mr-auto max-w-[90%] space-y-2">
               <BabyBubble
                 text={m.content}
                 animate={isLast && !send.isPending}
               />
+
+              {m.images?.map((image) => (
+                <a
+                  key={image.id}
+                  href={image.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block overflow-hidden rounded-xl border border-border bg-background/50"
+                  title={image.prompt}
+                >
+                  <img
+                    src={image.url}
+                    alt={image.prompt}
+                    className="block h-auto w-full object-contain"
+                    loading="lazy"
+                  />
+                  <div className="px-2 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Baby generated · {image.aspect_ratio}
+                  </div>
+                </a>
+              ))}
             </div>
           );
         })}

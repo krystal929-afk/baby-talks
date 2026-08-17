@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { signedUrlsForImageRows } from "@/server/image.functions";
 
 export type BabyConversation = {
   id: string;
@@ -11,11 +12,22 @@ export type BabyConversation = {
   updated_at: string;
 };
 
+export type SavedChatImage = {
+  id: string;
+  message_id: string | null;
+  prompt: string;
+  mime_type: string;
+  aspect_ratio: string;
+  model: string;
+  url: string;
+};
+
 export type SavedChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
   created_at: string;
+  images: SavedChatImage[];
 };
 
 function client() {
@@ -93,23 +105,47 @@ export const loadConversation = createServerFn({
       throw new Error("Conversation not found");
     }
 
-    const {
-      data: messages,
-      error: messagesError,
-    } = await supabase
-      .from("baby_messages")
-      .select("id,role,content,created_at")
-      .eq("conversation_id", data.conversation_id)
-      .eq("owner_id", context.userId)
-      .order("created_at", { ascending: true });
+    const [messagesResult, imagesResult] = await Promise.all([
+      supabase
+        .from("baby_messages")
+        .select("id,role,content,created_at")
+        .eq("conversation_id", data.conversation_id)
+        .eq("owner_id", context.userId)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("baby_images")
+        .select("id,message_id,prompt,mime_type,aspect_ratio,model,storage_path")
+        .eq("conversation_id", data.conversation_id)
+        .eq("owner_id", context.userId)
+        .order("created_at", { ascending: true }),
+    ]);
 
-    if (messagesError) {
-      throw new Error(messagesError.message);
+    if (messagesResult.error) {
+      throw new Error(messagesResult.error.message);
     }
+
+    if (imagesResult.error) {
+      throw new Error(imagesResult.error.message);
+    }
+
+    const signedImages = await signedUrlsForImageRows(imagesResult.data ?? []);
+    const imagesByMessage = new Map<string, SavedChatImage[]>();
+
+    for (const image of signedImages) {
+      if (!image?.message_id) continue;
+      const existing = imagesByMessage.get(image.message_id) ?? [];
+      existing.push(image as SavedChatImage);
+      imagesByMessage.set(image.message_id, existing);
+    }
+
+    const messages: SavedChatMessage[] = (messagesResult.data ?? []).map((message) => ({
+      ...(message as Omit<SavedChatMessage, "images">),
+      images: imagesByMessage.get(message.id) ?? [],
+    }));
 
     return {
       conversation: conversation as BabyConversation,
-      messages: (messages ?? []) as SavedChatMessage[],
+      messages,
     };
   });
 
@@ -179,6 +215,7 @@ export const appendConversationMessage = createServerFn({
         conversation_id: z.string().uuid(),
         role: z.enum(["user", "assistant"]),
         content: z.string().min(1).max(4000),
+        image_ids: z.array(z.string().uuid()).max(4).optional(),
       })
       .parse(input),
   )
@@ -199,17 +236,33 @@ export const appendConversationMessage = createServerFn({
       throw new Error("Conversation not found");
     }
 
-    const { error: messageError } = await supabase
+    const { data: message, error: messageError } = await supabase
       .from("baby_messages")
       .insert({
         conversation_id: data.conversation_id,
         owner_id: context.userId,
         role: data.role,
         content: data.content,
-      });
+      })
+      .select("id")
+      .single();
 
-    if (messageError) {
-      throw new Error(messageError.message);
+    if (messageError || !message) {
+      throw new Error(messageError?.message || "Couldn't save message");
+    }
+
+    if (data.image_ids?.length) {
+      const { error: imageError } = await supabase
+        .from("baby_images")
+        .update({ message_id: message.id })
+        .eq("owner_id", context.userId)
+        .eq("conversation_id", data.conversation_id)
+        .is("message_id", null)
+        .in("id", data.image_ids);
+
+      if (imageError) {
+        console.error("Couldn't attach Baby images to message", imageError);
+      }
     }
 
     const { error: updateError } = await supabase
@@ -224,7 +277,7 @@ export const appendConversationMessage = createServerFn({
       throw new Error(updateError.message);
     }
 
-    return { ok: true };
+    return { ok: true, message_id: message.id };
   });
 
 export const renameConversation = createServerFn({
@@ -270,7 +323,15 @@ export const deleteConversation = createServerFn({
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { error } = await client()
+    const supabase = client();
+
+    const { data: images } = await supabase
+      .from("baby_images")
+      .select("storage_path")
+      .eq("conversation_id", data.conversation_id)
+      .eq("owner_id", context.userId);
+
+    const { error } = await supabase
       .from("baby_conversations")
       .delete()
       .eq("id", data.conversation_id)
@@ -278,6 +339,17 @@ export const deleteConversation = createServerFn({
 
     if (error) {
       throw new Error(error.message);
+    }
+
+    const paths = (images ?? []).map((image) => image.storage_path).filter(Boolean);
+    if (paths.length) {
+      const { error: storageError } = await supabase.storage
+        .from("baby-images")
+        .remove(paths);
+
+      if (storageError) {
+        console.warn("Couldn't remove conversation images", storageError.message);
+      }
     }
 
     return { ok: true };

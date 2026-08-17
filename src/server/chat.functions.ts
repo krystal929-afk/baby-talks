@@ -7,6 +7,7 @@ import {
   generateAndStoreImage,
   IMAGE_ASPECT_RATIOS,
   type GeneratedBabyImage,
+  type ImageAspectRatio,
 } from "./image.functions";
 import { chatGateway, providerExtras, gatewayHeaders } from "./ai-gateway";
 
@@ -113,6 +114,33 @@ function findSkill(skills: CustomSkillRow[], requestedName: string) {
   };
 }
 
+function isExplicitImageRequest(text: string) {
+  const normalized = text.toLowerCase();
+  const asksToCreate = /\b(generate|create|make|draw|render|design|visualize|illustrate)\b/.test(normalized);
+  const asksForVisual = /\b(image|picture|graphic|poster|flyer|art|illustration|wallpaper|banner|visual)\b/.test(normalized);
+  return asksToCreate && asksForVisual;
+}
+
+function inferImageAspectRatio(text: string): ImageAspectRatio {
+  const normalized = text.toLowerCase();
+
+  if (/\b(9:16|story|stories|reel|phone|phone wallpaper|vertical video)\b/.test(normalized)) return "9:16";
+  if (/\b(16:9|landscape|wide|banner|youtube|header)\b/.test(normalized)) return "16:9";
+  if (/\b(4:5|instagram post|social post|portrait post)\b/.test(normalized)) return "4:5";
+  if (/\b(2:3|poster)\b/.test(normalized)) return "2:3";
+  if (/\b(3:4|portrait)\b/.test(normalized)) return "3:4";
+  return "1:1";
+}
+
+function directImagePrompt(messages: ChatMsg[]) {
+  const recent = messages.slice(-6);
+  return [
+    "Create the image requested in the final user message. Preserve the requested subject, text, mood, colors, composition, style, and constraints. Use earlier messages only when the final request depends on them.",
+    "",
+    ...recent.map((message) => `${message.role.toUpperCase()}: ${message.content}`),
+  ].join("\n");
+}
+
 export const chatWithBaby = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ChatInput.parse(d))
@@ -122,6 +150,36 @@ export const chatWithBaby = createServerFn({ method: "POST" })
     const supabaseUrl = process.env.SUPABASE_URL!;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const supa = createClient(supabaseUrl, serviceKey);
+
+    const lastUserMessage = [...data.messages]
+      .reverse()
+      .find((message) => message.role === "user")?.content ?? "";
+
+    if (isExplicitImageRequest(lastUserMessage)) {
+      if (!data.conversation_id) {
+        throw new Error("Image generation needs a saved conversation.");
+      }
+
+      try {
+        const image = await generateAndStoreImage({
+          ownerId: context.userId,
+          conversationId: data.conversation_id,
+          prompt: directImagePrompt(data.messages),
+          aspectRatio: inferImageAspectRatio(lastUserMessage),
+        });
+
+        return {
+          reply: "Made it, daddy.",
+          saved_memory: null,
+          generated_images: [image],
+        };
+      } catch (error) {
+        console.error("Direct image generation failed", error);
+        throw error instanceof Error
+          ? error
+          : new Error("Image generation failed.");
+      }
+    }
 
     const [{ data: memRows }, { data: skillRows, error: skillError }] = await Promise.all([
       supa
@@ -364,9 +422,9 @@ export const chatWithBaby = createServerFn({ method: "POST" })
               } else if (name === "generate_image") {
                 const prompt = String(args.prompt || "").trim();
                 if (!data.conversation_id) {
-                  result = { error: "A saved conversation is required before generating an image." };
+                  throw new Error("Image generation needs a saved conversation.");
                 } else if (!prompt) {
-                  result = { error: "prompt required" };
+                  throw new Error("Image prompt required.");
                 } else {
                   const image = await generateAndStoreImage({
                     ownerId: context.userId,
@@ -445,6 +503,9 @@ export const chatWithBaby = createServerFn({ method: "POST" })
               }
             } catch (e) {
               console.error(`tool ${name} error`, e);
+              if (name === "generate_image") {
+                throw e instanceof Error ? e : new Error("Image generation failed.");
+              }
               result = { error: e instanceof Error ? e.message : "tool failed" };
             }
             convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result) });

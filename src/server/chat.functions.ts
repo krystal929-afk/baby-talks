@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { BUILT_IN_SKILLS } from "@/lib/baby-skills";
 import { chatGateway, providerExtras, gatewayHeaders } from "./ai-gateway";
 
 const Msg = z.object({
@@ -139,6 +140,10 @@ export const chatWithBaby = createServerFn({ method: "POST" })
       ? `\n\n--- Baby's brain (things you already know about daddy) ---\n${memRows.map((m: { content: string }) => `• ${m.content}`).join("\n")}\n--- end Baby's brain ---`
       : "";
 
+    const builtInSkillsBlock = `\n\n--- Baby's built-in Skills ---\n${BUILT_IN_SKILLS
+      .map((skill) => `• ${skill.name} — ${skill.description} Use tool: ${skill.toolName}.`)
+      .join("\n")}\nWhen daddy explicitly names one of these Skills, use its mapped tool when the request calls for that action.\n--- end built-in Skills ---`;
+
     const skillsBlock = customSkills.length
       ? `\n\n--- Daddy's enabled custom Skills ---\n${customSkills
           .map((skill) => `• ${skill.name}${skill.description ? ` — ${skill.description}` : ""}`)
@@ -151,7 +156,7 @@ export const chatWithBaby = createServerFn({ method: "POST" })
 
     const nowBlock = `\n\n--- Right now ---\nCurrent time: ${new Date().toISOString()} (UTC). When daddy says relative times like "tomorrow at 3" assume his local time and convert to ISO.\n--- end ---`;
 
-    const systemPrompt = BABY_CHAT_PROMPT + memoryBlock + skillsBlock + contextBlock + nowBlock;
+    const systemPrompt = BABY_CHAT_PROMPT + memoryBlock + builtInSkillsBlock + skillsBlock + contextBlock + nowBlock;
 
     const tools = [
       {

@@ -2,7 +2,13 @@ export type BuiltInSkill = {
   id: string;
   name: string;
   description: string;
-  toolName: "save_idea" | "web_search" | "schedule_event" | "list_events" | "remember";
+  toolName:
+    | "save_idea"
+    | "generate_image"
+    | "web_search"
+    | "schedule_event"
+    | "list_events"
+    | "remember";
 };
 
 export const BUILT_IN_SKILLS: BuiltInSkill[] = [
@@ -12,6 +18,13 @@ export const BUILT_IN_SKILLS: BuiltInSkill[] = [
     description:
       "Recognize an idea, classify it, and file it into Grow, Rethink, Parking Lot, or Trash.",
     toolName: "save_idea",
+  },
+  {
+    id: "generate-image",
+    name: "Generate an Image",
+    description:
+      "Create a visual from a description and save it inside the current Baby conversation.",
+    toolName: "generate_image",
   },
   {
     id: "live-research",

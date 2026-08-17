@@ -56,7 +56,6 @@ export function PushToggle() {
           endpoint: json.endpoint,
           p256dh: json.keys.p256dh,
           auth: json.keys.auth,
-          label: navigator.userAgent.slice(0, 100),
         },
       });
       setState("on");

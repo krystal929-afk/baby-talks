@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      baby_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          owner_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       baby_memories: {
         Row: {
           content: string
@@ -27,7 +51,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
-          owner_id?: string
+          owner_id: string
           source?: string
           updated_at?: string
         }
@@ -35,7 +59,79 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          owner_id?: string
           source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      baby_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          feedback: string | null
+          id: string
+          owner_id: string
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          owner_id?: string
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          owner_id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "baby_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "baby_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      baby_skills: {
+        Row: {
+          created_at: string
+          description: string
+          enabled: boolean
+          id: string
+          instructions: string
+          name: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          enabled?: boolean
+          id?: string
+          instructions: string
+          name: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          enabled?: boolean
+          id?: string
+          instructions?: string
+          name?: string
+          owner_id?: string
           updated_at?: string
         }
         Relationships: []
@@ -46,9 +142,9 @@ export type Database = {
           created_at: string
           ends_at: string | null
           id: string
-          owner_id: string
           location: string | null
           notes: string | null
+          owner_id: string
           remind_at: string | null
           reminded: boolean
           starts_at: string
@@ -60,9 +156,9 @@ export type Database = {
           created_at?: string
           ends_at?: string | null
           id?: string
-          owner_id?: string
           location?: string | null
           notes?: string | null
+          owner_id: string
           remind_at?: string | null
           reminded?: boolean
           starts_at: string
@@ -76,6 +172,7 @@ export type Database = {
           id?: string
           location?: string | null
           notes?: string | null
+          owner_id?: string
           remind_at?: string | null
           reminded?: boolean
           starts_at?: string
@@ -99,7 +196,7 @@ export type Database = {
           created_at?: string
           dev_pack?: Json | null
           id?: string
-          owner_id?: string
+          owner_id: string
           status?: string
           topic?: string
           transcript: string
@@ -109,6 +206,7 @@ export type Database = {
           created_at?: string
           dev_pack?: Json | null
           id?: string
+          owner_id?: string
           status?: string
           topic?: string
           transcript?: string
@@ -123,28 +221,26 @@ export type Database = {
           endpoint: string
           id: string
           owner_id: string
-          label: string | null
-          last_used_at: string | null
           p256dh: string
+          updated_at: string
         }
         Insert: {
           auth: string
           created_at?: string
           endpoint: string
           id?: string
-          owner_id?: string
-          label?: string | null
-          last_used_at?: string | null
+          owner_id: string
           p256dh: string
+          updated_at?: string
         }
         Update: {
           auth?: string
           created_at?: string
           endpoint?: string
           id?: string
-          label?: string | null
-          last_used_at?: string | null
+          owner_id?: string
           p256dh?: string
+          updated_at?: string
         }
         Relationships: []
       }

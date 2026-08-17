@@ -1,0 +1,36 @@
+name: Baby build check
+
+on:
+  push:
+    branches:
+      - baby-firefly-clean
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: baby-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and typecheck
+        run: npm run build

@@ -55,6 +55,100 @@ function normalizeAspectRatio(value: string | undefined): ImageAspectRatio {
     : "1:1";
 }
 
+function base64ToBytes(base64: string) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes;
+}
+
+function googleErrorMessage(body: string) {
+  try {
+    const parsed = JSON.parse(body) as {
+      error?: { message?: string; status?: string };
+    };
+    const message = parsed.error?.message?.trim();
+    if (message) return message;
+  } catch {
+    // Fall through to a short plain-text body when Google did not return JSON.
+  }
+
+  return body.trim().replace(/\s+/g, " ").slice(0, 500) || "Unknown Gemini error";
+}
+
+async function requestGeminiImage({
+  apiKey,
+  model,
+  prompt,
+  aspectRatio,
+}: {
+  apiKey: string;
+  model: string;
+  prompt: string;
+  aspectRatio: ImageAspectRatio;
+}) {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(model)}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          responseModalities: ["Image"],
+          responseFormat: {
+            image: {
+              aspectRatio,
+              imageSize: "1K",
+            },
+          },
+        },
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const body = await response.text();
+    const providerMessage = googleErrorMessage(body);
+    console.error("Gemini image generation failed", {
+      status: response.status,
+      model,
+      aspectRatio,
+      providerMessage,
+    });
+
+    if (response.status === 429) {
+      throw new Error(`Gemini image quota error: ${providerMessage}`);
+    }
+
+    throw new Error(`Gemini image error ${response.status}: ${providerMessage}`);
+  }
+
+  return (await response.json()) as {
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{
+          inlineData?: {
+            mimeType?: string;
+            data?: string;
+          };
+        }>;
+      };
+    }>;
+  };
+}
+
 export async function generateAndStoreImage({
   ownerId,
   conversationId,
@@ -68,7 +162,7 @@ export async function generateAndStoreImage({
 }): Promise<GeneratedBabyImage> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured");
+    throw new Error("GEMINI_API_KEY is not configured in the deployed runtime");
   }
 
   const cleanPrompt = prompt.trim();
@@ -91,62 +185,12 @@ export async function generateAndStoreImage({
     throw new Error("Conversation not found");
   }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(model)}:generateContent`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: cleanPrompt }],
-          },
-        ],
-        generationConfig: {
-          responseModalities: ["IMAGE"],
-          responseFormat: {
-            image: {
-              aspectRatio: ratio,
-              imageSize: "1K",
-            },
-          },
-        },
-      }),
-    },
-  );
-
-  if (!response.ok) {
-    const body = await response.text();
-    console.error("Gemini image generation failed", response.status, body);
-
-    if (response.status === 429) {
-      throw new Error("Image generation is out of quota right now");
-    }
-
-    if (response.status === 400 || response.status === 403) {
-      throw new Error(
-        "Image generation is unavailable for this Gemini API key. Check that billing/image-model access is enabled.",
-      );
-    }
-
-    throw new Error(`Image generation failed (${response.status})`);
-  }
-
-  const json = (await response.json()) as {
-    candidates?: Array<{
-      content?: {
-        parts?: Array<{
-          inlineData?: {
-            mimeType?: string;
-            data?: string;
-          };
-        }>;
-      };
-    }>;
-  };
+  const json = await requestGeminiImage({
+    apiKey,
+    model,
+    prompt: cleanPrompt,
+    aspectRatio: ratio,
+  });
 
   const imagePart = json.candidates?.[0]?.content?.parts?.find(
     (part) => part.inlineData?.data,
@@ -154,13 +198,13 @@ export async function generateAndStoreImage({
 
   const base64 = imagePart?.inlineData?.data;
   if (!base64) {
-    throw new Error("Gemini returned no image");
+    throw new Error("Gemini returned a successful response but no image data");
   }
 
   const mimeType = imagePart.inlineData?.mimeType || "image/png";
   const extension = extensionForMime(mimeType);
   const storagePath = `${ownerId}/${conversationId}/${crypto.randomUUID()}.${extension}`;
-  const bytes = Uint8Array.from(Buffer.from(base64, "base64"));
+  const bytes = base64ToBytes(base64);
 
   const { error: uploadError } = await supabase.storage
     .from(IMAGE_BUCKET)

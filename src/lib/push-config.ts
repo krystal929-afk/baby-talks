@@ -1,6 +1,6 @@
 // Public VAPID key. Safe to expose — clients need it to subscribe.
 export const VAPID_PUBLIC_KEY =
-  "BED6fJrN0Y8Zv3m4zcdrT2QbyRQEm4XKtNgRVqDWQJwkyRTG39owgOWLlb4kG7U7dp5wmUtLfGU4SD9JRJYqI-I";
+  "BBDzWEz7oghWrwYF8foRPSZEy2B7wi49V0n3gLLZrmurhtJ5V0U4AN4PrygWv4jiploJFSPGMGr8O7kRYEl1sew";
 
 export const VAPID_SUBJECT = "mailto:baby@mr-satan.app";
 

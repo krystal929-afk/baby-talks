@@ -38,6 +38,60 @@ export type Database = {
         }
         Relationships: []
       }
+      baby_images: {
+        Row: {
+          aspect_ratio: string
+          conversation_id: string
+          created_at: string
+          id: string
+          message_id: string | null
+          mime_type: string
+          model: string
+          owner_id: string
+          prompt: string
+          storage_path: string
+        }
+        Insert: {
+          aspect_ratio?: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          mime_type?: string
+          model: string
+          owner_id?: string
+          prompt: string
+          storage_path: string
+        }
+        Update: {
+          aspect_ratio?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          mime_type?: string
+          model?: string
+          owner_id?: string
+          prompt?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "baby_images_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "baby_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "baby_images_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "baby_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       baby_memories: {
         Row: {
           content: string

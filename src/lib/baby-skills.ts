@@ -23,7 +23,7 @@ export const BUILT_IN_SKILLS: BuiltInSkill[] = [
     id: "generate-image",
     name: "Generate an Image",
     description:
-      "Create a visual from a description and save it inside the current Baby conversation.",
+      "Create a visual from a description and save it inside the current Baby conversation. When Daddy asks to generate an image, use this tool rather than describing a substitute. If the tool returns an error, state the actual error plainly and do not roleplay around it.",
     toolName: "generate_image",
   },
   {

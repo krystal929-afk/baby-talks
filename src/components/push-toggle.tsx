@@ -89,12 +89,26 @@ export function PushToggle() {
         }
 
         const existing = await reg.pushManager.getSubscription();
+
         if (!existing) {
+          if (Notification.permission === "granted") {
+            setState("loading");
+            await subscribeWithCurrentKey(reg);
+            setState("on");
+            await sendDeliveryTest();
+            toast.success("Baby repaired notifications, Mr. S.");
+            return;
+          }
+
           setState("off");
           return;
         }
 
         if (usesCurrentPushKey(existing)) {
+          // The browser can keep a perfectly valid subscription even if the
+          // server-side row was deleted or lost. Re-upsert it on every load so
+          // Baby always has a delivery address for this device.
+          await persistSubscription(existing);
           setState("on");
           return;
         }

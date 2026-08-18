@@ -38,6 +38,53 @@ export type Database = {
         }
         Relationships: []
       }
+      baby_documents: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          filename: string
+          format: string
+          id: string
+          mime_type: string
+          owner_id: string
+          storage_path: string
+          title: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          filename: string
+          format: string
+          id?: string
+          mime_type: string
+          owner_id: string
+          storage_path: string
+          title: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          filename?: string
+          format?: string
+          id?: string
+          mime_type?: string
+          owner_id?: string
+          storage_path?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "baby_documents_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "baby_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       baby_images: {
         Row: {
           aspect_ratio: string
@@ -382,8 +429,8 @@ export type TablesUpdate<
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
+    schema: keyof DatabaseWithoutInternals
+  }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }

@@ -10,6 +10,8 @@ import { VAPID_PUBLIC_KEY, urlBase64ToUint8Array } from "@/lib/push-config";
 
 type State = "unsupported" | "denied" | "off" | "on" | "loading";
 
+const DELIVERY_CHECK_KEY = "baby-push-delivery-check-v3";
+
 function usesCurrentPushKey(subscription: PushSubscription) {
   const current = subscription.options.applicationServerKey;
   if (!current) return false;
@@ -68,7 +70,30 @@ export function PushToggle() {
     });
 
     if (error) throw error;
-    if (!data?.sent) throw new Error("Baby couldn't deliver the test ping.");
+
+    const sent = Number(data?.sent || 0);
+    if (!sent) throw new Error("Baby couldn't deliver the test ping.");
+    return sent;
+  }
+
+  async function runOneTimeDeliveryCheck() {
+    if (typeof window === "undefined") return;
+    if (window.localStorage.getItem(DELIVERY_CHECK_KEY)) return;
+
+    try {
+      const sent = await sendDeliveryTest();
+      window.localStorage.setItem(DELIVERY_CHECK_KEY, new Date().toISOString());
+      toast.success(
+        `Baby handed ${sent} push ${sent === 1 ? "notification" : "notifications"} to the delivery service.`,
+      );
+    } catch (error) {
+      console.error("Baby delivery check failed", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Baby couldn't verify push delivery.",
+      );
+    }
   }
 
   useEffect(() => {
@@ -95,8 +120,11 @@ export function PushToggle() {
             setState("loading");
             await subscribeWithCurrentKey(reg);
             setState("on");
-            await sendDeliveryTest();
-            toast.success("Baby repaired notifications, Mr. S.");
+            const sent = await sendDeliveryTest();
+            window.localStorage.setItem(DELIVERY_CHECK_KEY, new Date().toISOString());
+            toast.success(
+              `Baby repaired notifications, Mr. S. ${sent} push ${sent === 1 ? "endpoint" : "endpoints"} accepted the test.`,
+            );
             return;
           }
 
@@ -110,6 +138,7 @@ export function PushToggle() {
           // Baby always has a delivery address for this device.
           await persistSubscription(existing);
           setState("on");
+          await runOneTimeDeliveryCheck();
           return;
         }
 
@@ -127,8 +156,11 @@ export function PushToggle() {
         await existing.unsubscribe();
         await subscribeWithCurrentKey(reg);
         setState("on");
-        await sendDeliveryTest();
-        toast.success("Baby reconnected notifications, Mr. S.");
+        const sent = await sendDeliveryTest();
+        window.localStorage.setItem(DELIVERY_CHECK_KEY, new Date().toISOString());
+        toast.success(
+          `Baby reconnected notifications, Mr. S. ${sent} push ${sent === 1 ? "endpoint" : "endpoints"} accepted the test.`,
+        );
       } catch (e) {
         console.error(e);
         setState("unsupported");
@@ -149,8 +181,11 @@ export function PushToggle() {
       const reg = await navigator.serviceWorker.ready;
       await subscribeWithCurrentKey(reg);
       setState("on");
-      toast.success("Baby's got eyes on ya now, Mr. S.");
-      await sendDeliveryTest();
+      const sent = await sendDeliveryTest();
+      window.localStorage.setItem(DELIVERY_CHECK_KEY, new Date().toISOString());
+      toast.success(
+        `Baby's got eyes on ya now, Mr. S. ${sent} push ${sent === 1 ? "endpoint" : "endpoints"} accepted the test.`,
+      );
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Couldn't turn it on");
@@ -198,13 +233,14 @@ export function PushToggle() {
       onClick={state === "on" ? disable : enable}
       disabled={state === "loading"}
       className="gap-2"
+      title={state === "on" ? "Tap to turn reminders off" : "Turn reminders on"}
     >
       {state === "loading" ? (
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : state === "on" ? (
-        <BellOff className="h-4 w-4" />
-      ) : (
         <Bell className="h-4 w-4" />
+      ) : (
+        <BellOff className="h-4 w-4" />
       )}
       {state === "on" ? "Reminders on" : "Turn on reminders"}
     </Button>

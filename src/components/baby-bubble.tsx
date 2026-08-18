@@ -27,6 +27,27 @@ type Props = {
   intervalMs?: number;
 };
 
+const DOCUMENT_PATH_RE = /^\/documents\/[0-9a-fA-F-]{36}$/;
+const DOCUMENT_SPLIT_RE = /(\/documents\/[0-9a-fA-F-]{36})/g;
+
+function renderMessageText(text: string) {
+  return text.split(DOCUMENT_SPLIT_RE).map((part, index) => {
+    if (!DOCUMENT_PATH_RE.test(part)) return part;
+
+    return (
+      <a
+        key={`${part}-${index}`}
+        href={part}
+        target="_blank"
+        rel="noreferrer"
+        className="font-semibold text-primary underline decoration-primary/50 underline-offset-2 hover:decoration-primary"
+      >
+        Open document
+      </a>
+    );
+  });
+}
+
 function feedbackKey(text: string) {
   let hash = 0;
 
@@ -235,7 +256,7 @@ export function BabyBubble({
           </span>
         )}
 
-        {shown}
+        {renderMessageText(shown)}
 
         {!done && (
           <span className="ml-0.5 inline-block animate-pulse text-primary">

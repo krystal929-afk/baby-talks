@@ -8,6 +8,7 @@ import {
   generateAndStoreDocument,
   type GeneratedBabyDocument,
 } from "./document.functions";
+import { writeDocumentDraft } from "./document-writer";
 import {
   generateAndStoreImage,
   IMAGE_ASPECT_RATIOS,
@@ -165,8 +166,8 @@ function isExplicitImageRequest(text: string) {
 
 function isExplicitDocumentRequest(text: string) {
   const normalized = text.toLowerCase();
-  const asksToCreate = /\b(generate|create|make|write|build|export|save|turn|convert)\b/.test(normalized);
-  const asksForDocument = /\b(pdf|docx|word document|word file|document|printable|handout|report|brief|checklist|letter)\b/.test(normalized);
+  const asksToCreate = /\b(generate|create|make|write|build|export|save|turn|convert|produce)\b/.test(normalized);
+  const asksForDocument = /\b(pdf|docx|word document|word file|document|printable|handout|report|brief|checklist|letter|file)\b/.test(normalized);
   const asksToConvert = /\b(as|into|to)\s+(a\s+|an\s+)?(pdf|docx|word document|word file|document)\b/.test(normalized);
   return asksForDocument && (asksToCreate || asksToConvert);
 }
@@ -262,6 +263,41 @@ export const chatWithBaby = createServerFn({ method: "POST" })
         throw error instanceof Error
           ? error
           : new Error("Image generation failed.");
+      }
+    }
+
+    if (isExplicitDocumentRequest(lastUserMessage)) {
+      if (!data.conversation_id) {
+        throw new Error("Document generation needs a saved conversation.");
+      }
+
+      try {
+        const draft = await writeDocumentDraft({
+          messages: threadMessages,
+          request: lastUserMessage,
+        });
+        const document = await generateAndStoreDocument({
+          ownerId: context.userId,
+          conversationId: data.conversation_id,
+          title: draft.title,
+          content: draft.content,
+          format: draft.format,
+          filename: draft.filename,
+        });
+        const speaker = explicitSpeakerIdentity(threadMessages);
+        const confirmation =
+          speaker && speaker !== "Mr. Satan" ? `Made it, ${speaker}.` : "Made it, daddy.";
+
+        return {
+          reply: withDocumentLinks(confirmation, [document]),
+          saved_memory: null,
+          generated_images: [],
+        };
+      } catch (error) {
+        console.error("Direct document generation failed", error);
+        throw error instanceof Error
+          ? error
+          : new Error("Document generation failed.");
       }
     }
 

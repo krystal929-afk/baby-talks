@@ -17,6 +17,8 @@ export type GeneratedBabyDocument = {
 };
 
 const DOCUMENT_BUCKET = "baby-documents";
+const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 function serverConfig() {
   const url = process.env.SUPABASE_URL;
@@ -115,7 +117,13 @@ export const getDocumentDownloadUrl = createServerFn({ method: "GET" })
 
     const { data: signed, error: signedError } = await supabase.storage
       .from(DOCUMENT_BUCKET)
-      .createSignedUrl(document.storage_path, 60 * 5);
+      .createSignedUrl(
+        document.storage_path,
+        60 * 5,
+        document.mime_type === DOCX_MIME
+          ? { download: document.filename }
+          : undefined,
+      );
 
     if (signedError || !signed?.signedUrl) {
       throw new Error(signedError?.message || "Couldn't open document");

@@ -1,1 +1,4 @@
-project_id = "toxtjyuocupmcqxaqqkz"
+project_id = "jtymnvlzbabobroabzlf"
+
+[functions.baby-document-generate]
+verify_jwt = false

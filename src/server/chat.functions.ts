@@ -16,13 +16,16 @@ import {
 } from "./image.functions";
 import { chatGateway, providerExtras, gatewayHeaders } from "./ai-gateway";
 
+const MAX_REQUEST_MESSAGES = 200;
+const MAX_MODEL_HISTORY_MESSAGES = 36;
+
 const Msg = z.object({
   role: z.enum(["user", "assistant"]),
   content: z.string().min(1).max(4000),
 });
 
 const ChatInput = z.object({
-  messages: z.array(Msg).min(1).max(40),
+  messages: z.array(Msg).min(1).max(MAX_REQUEST_MESSAGES),
   context: z.string().max(2000).optional(),
   conversation_id: z.string().uuid().optional(),
 });
@@ -119,6 +122,14 @@ function findSkill(skills: CustomSkillRow[], requestedName: string) {
     skill: matches.length === 1 ? matches[0] : null,
     matches,
   };
+}
+
+function modelHistory(messages: ChatMsg[]) {
+  if (messages.length <= MAX_MODEL_HISTORY_MESSAGES) return messages;
+
+  const recent = messages.slice(-MAX_MODEL_HISTORY_MESSAGES);
+  const firstUserIndex = recent.findIndex((message) => message.role === "user");
+  return firstUserIndex > 0 ? recent.slice(firstUserIndex) : recent;
 }
 
 function isExplicitImageRequest(text: string) {
@@ -410,7 +421,7 @@ export const chatWithBaby = createServerFn({ method: "POST" })
     type ChatMessage = { role: string; content: string | null; tool_calls?: unknown; tool_call_id?: string };
     const convo: ChatMessage[] = [
       { role: "system", content: systemPrompt },
-      ...data.messages.map((m) => ({ role: m.role, content: m.content })),
+      ...modelHistory(data.messages).map((m) => ({ role: m.role, content: m.content })),
     ];
     let savedMemory: string | null = null;
     const generatedImages: GeneratedBabyImage[] = [];

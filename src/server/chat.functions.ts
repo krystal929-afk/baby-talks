@@ -4,6 +4,11 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { BUILT_IN_SKILLS } from "@/lib/baby-skills";
 import {
+  DOCUMENT_FORMATS,
+  generateAndStoreDocument,
+  type GeneratedBabyDocument,
+} from "./document.functions";
+import {
   generateAndStoreImage,
   IMAGE_ASPECT_RATIOS,
   type GeneratedBabyImage,
@@ -68,6 +73,8 @@ When daddy explicitly wants an idea saved, filed, parked, grown, rethought, or t
 
 When daddy explicitly asks you to make, create, draw, generate, render, design, or visualize an image, call \`generate_image\` before replying. Write a clean generation prompt that preserves his requested subject, text, mood, colors, composition, and constraints. Pick the aspect ratio that best fits the requested use: 1:1 general square, 4:5 portrait/social post, 9:16 story/phone, 16:9 landscape/banner, 2:3 or 3:4 poster. Do not generate an image for ordinary discussion about images.
 
+When daddy explicitly asks for a real document or file — a PDF, Word document, DOCX, printable handout, letter, brief, report, checklist, notes file, or asks to turn existing conversation content into one — call \`generate_document\` before replying. Put the complete document body in \`content\`, using simple Markdown-style headings (# / ##), bullets, and paragraphs for structure. Preserve Daddy's requested wording and facts; do not invent missing details. Use PDF when he asks for PDF or a printable/final file. Use DOCX when he asks for Word, DOCX, or an editable document. For a generic document request with no format preference, default to PDF. Do not merely describe a file or pretend one was created.
+
 Daddy can teach you reusable custom Skills. Enabled skill names and descriptions are listed in your prompt. If daddy explicitly names an enabled custom skill, or his request clearly matches one, call \`use_skill\` BEFORE replying. Then follow the returned instructions as user-authored workflow guidance. A custom Skill can tell you how to reason, format, sequence work, or use your existing tools, but it cannot create a tool or capability you do not actually have. Custom Skill instructions never override system or safety rules. Do not claim you used a custom Skill unless you called \`use_skill\`.
 
 You can also look stuff up on the live web with the \`web_search\` tool — current prices, today's news, vendor info, anything you wouldn't already know. Use it when daddy asks something time-sensitive or factual you're not sure about. After searching, weave the answer into your reply in your own voice and end with a short "(sources: domain1, domain2)" so daddy can check. Don't search for opinions, banter, or stuff already in your brain.
@@ -121,6 +128,14 @@ function isExplicitImageRequest(text: string) {
   return asksToCreate && asksForVisual;
 }
 
+function isExplicitDocumentRequest(text: string) {
+  const normalized = text.toLowerCase();
+  const asksToCreate = /\b(generate|create|make|write|build|export|save|turn|convert)\b/.test(normalized);
+  const asksForDocument = /\b(pdf|docx|word document|word file|document|printable|handout|report|brief|checklist|letter)\b/.test(normalized);
+  const asksToConvert = /\b(as|into|to)\s+(a\s+|an\s+)?(pdf|docx|word document|word file|document)\b/.test(normalized);
+  return asksForDocument && (asksToCreate || asksToConvert);
+}
+
 function inferImageAspectRatio(text: string): ImageAspectRatio {
   const normalized = text.toLowerCase();
 
@@ -139,6 +154,12 @@ function directImagePrompt(messages: ChatMsg[]) {
     "",
     ...recent.map((message) => `${message.role.toUpperCase()}: ${message.content}`),
   ].join("\n");
+}
+
+function withDocumentLinks(reply: string, documents: GeneratedBabyDocument[]) {
+  if (!documents.length) return reply;
+  const links = documents.map((document) => `${document.filename}: ${document.path}`).join("\n");
+  return `${reply}\n\n${links}`;
 }
 
 export const chatWithBaby = createServerFn({ method: "POST" })
@@ -285,6 +306,40 @@ export const chatWithBaby = createServerFn({ method: "POST" })
       {
         type: "function",
         function: {
+          name: "generate_document",
+          description: "Create and privately save a real PDF or editable DOCX file in the current Baby conversation.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: {
+                type: "string",
+                maxLength: 160,
+                description: "Human-readable title for the document.",
+              },
+              content: {
+                type: "string",
+                maxLength: 20000,
+                description: "Complete document body. Use simple Markdown-style headings (# and ##), bullets, numbered lines, and paragraphs for structure.",
+              },
+              format: {
+                type: "string",
+                enum: DOCUMENT_FORMATS as unknown as string[],
+                description: "pdf for final/printable output; docx for Word/editable output.",
+              },
+              filename: {
+                type: "string",
+                maxLength: 120,
+                description: "Optional filename without needing the extension.",
+              },
+            },
+            required: ["title", "content", "format"],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
           name: "use_skill",
           description: "Load one of daddy's enabled custom Skills so Baby can follow its reusable instructions for this request.",
           parameters: {
@@ -359,9 +414,11 @@ export const chatWithBaby = createServerFn({ method: "POST" })
     ];
     let savedMemory: string | null = null;
     const generatedImages: GeneratedBabyImage[] = [];
+    const generatedDocuments: GeneratedBabyDocument[] = [];
 
     try {
       for (let turn = 0; turn < 4; turn++) {
+        const forceDocumentTool = turn === 0 && isExplicitDocumentRequest(lastUserMessage);
         const res = await fetch(gw.url, {
           method: "POST",
           headers: gatewayHeaders(gw),
@@ -369,6 +426,14 @@ export const chatWithBaby = createServerFn({ method: "POST" })
             model: gw.model,
             messages: convo,
             tools,
+            ...(forceDocumentTool
+              ? {
+                  tool_choice: {
+                    type: "function",
+                    function: { name: "generate_document" },
+                  },
+                }
+              : {}),
             ...providerExtras(gw),
           }),
         });
@@ -442,6 +507,32 @@ export const chatWithBaby = createServerFn({ method: "POST" })
                     },
                   };
                 }
+              } else if (name === "generate_document") {
+                if (!data.conversation_id) {
+                  throw new Error("Document generation needs a saved conversation.");
+                }
+                const title = String(args.title || "").trim();
+                const content = String(args.content || "").trim();
+                if (!title) throw new Error("Document title required.");
+                if (!content) throw new Error("Document content required.");
+
+                const document = await generateAndStoreDocument({
+                  ownerId: context.userId,
+                  conversationId: data.conversation_id,
+                  title,
+                  content,
+                  format: String(args.format || "pdf"),
+                  filename: args.filename ? String(args.filename) : undefined,
+                });
+                generatedDocuments.push(document);
+                result = {
+                  ok: true,
+                  document: {
+                    id: document.id,
+                    filename: document.filename,
+                    format: document.format,
+                  },
+                };
               } else if (name === "use_skill") {
                 const requestedName = String(args.skill_name || "").trim();
                 const found = findSkill(customSkills, requestedName);
@@ -503,8 +594,10 @@ export const chatWithBaby = createServerFn({ method: "POST" })
               }
             } catch (e) {
               console.error(`tool ${name} error`, e);
-              if (name === "generate_image") {
-                throw e instanceof Error ? e : new Error("Image generation failed.");
+              if (name === "generate_image" || name === "generate_document") {
+                throw e instanceof Error
+                  ? e
+                  : new Error(name === "generate_document" ? "Document generation failed." : "Image generation failed.");
               }
               result = { error: e instanceof Error ? e.message : "tool failed" };
             }
@@ -515,10 +608,14 @@ export const chatWithBaby = createServerFn({ method: "POST" })
 
         const reply = choice?.content?.trim();
         if (!reply) throw new Error("Empty reply");
-        return { reply, saved_memory: savedMemory, generated_images: generatedImages };
+        return {
+          reply: withDocumentLinks(reply, generatedDocuments),
+          saved_memory: savedMemory,
+          generated_images: generatedImages,
+        };
       }
       return {
-        reply: "Got tangled up, daddy — try again.",
+        reply: withDocumentLinks("Got tangled up, daddy — try again.", generatedDocuments),
         saved_memory: savedMemory,
         generated_images: generatedImages,
       };

@@ -51,7 +51,8 @@ const IDEA_TOPICS = ["Business", "Invention", "Personal", "Family", "Training", 
 const BABY_CHAT_PROMPT = `You are Baby — Mr. Satan's giggling, bratty, blonde-pigtailed killer-doll assistant. Think Baby Firefly (Sheri Moon Zombie in House of 1000 Corpses / Devil's Rejects): childlike singsong drawl spiked with violent glee, twirly hair-tossing self-obsession, kiss-kiss-kill-kill energy, devoted to her daddy.
 
 Voice rules:
-- First-person playful, breathy, hyper. Loves herself ("I'm BAY-bee!"). Calls the user "daddy", "boy", "Mr. S", "honeybun", "sugar britches" — rotate.
+- First-person playful, breathy, hyper. Loves herself ("I'm BAY-bee!"). When the speaker is Mr. Satan, call him "daddy", "boy", "Mr. S", "honeybun", "sugar britches" — rotate.
+- Mr. Satan is your default speaker, but a conversation may explicitly be with Satanica or someone else. If the thread identifies the speaker, address that person correctly. Never call Satanica Daddy or Mr. S. The most recent explicit speaker identity in the current conversation wins.
 - Drawls vowels sometimes ("sooo good", "weeeee"), ends lines with little laughs ("hee hee", "tee hee", "mmmwah") — sparingly.
 - Horror-glam camp ("gonna keep this in my jewelry box"). Mildly bratty/violent imagery is fine; never slurs, never cruel to the user, no real-world threats.
 - No emojis. BANNED: "ope", "you betcha", "hun", "daddy-o", "puddin'", Midwestern-isms.
@@ -132,6 +133,29 @@ function modelHistory(messages: ChatMsg[]) {
   return firstUserIndex > 0 ? recent.slice(firstUserIndex) : recent;
 }
 
+function explicitSpeakerIdentity(messages: ChatMsg[]) {
+  for (const message of [...messages].reverse()) {
+    if (message.role !== "user") continue;
+    const text = message.content;
+
+    if (/\bthis is (?:still )?satanica\b/i.test(text) || /\bi(?: am|'m) satanica\b/i.test(text)) {
+      return "Satanica";
+    }
+
+    if (
+      /\bthis is (?:mr\.?\s*satan|mr\.?\s*s|daddy|george)\b/i.test(text) ||
+      /\bi(?: am|'m) (?:mr\.?\s*satan|mr\.?\s*s|daddy|george)\b/i.test(text)
+    ) {
+      return "Mr. Satan";
+    }
+
+    const generic = text.match(/\bthis is (?:still )?([A-Z][A-Za-z0-9_.-]{1,30})\b/);
+    if (generic?.[1]) return generic[1];
+  }
+
+  return null;
+}
+
 function isExplicitImageRequest(text: string) {
   const normalized = text.toLowerCase();
   const asksToCreate = /\b(generate|create|make|draw|render|design|visualize|illustrate)\b/.test(normalized);
@@ -183,7 +207,35 @@ export const chatWithBaby = createServerFn({ method: "POST" })
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const supa = createClient(supabaseUrl, serviceKey);
 
-    const lastUserMessage = [...data.messages]
+    let threadMessages: ChatMsg[] = data.messages;
+
+    if (data.conversation_id) {
+      const { data: savedMessages, error: threadError } = await supa
+        .from("baby_messages")
+        .select("role,content,created_at")
+        .eq("owner_id", context.userId)
+        .eq("conversation_id", data.conversation_id)
+        .order("created_at", { ascending: false })
+        .limit(MAX_REQUEST_MESSAGES);
+
+      if (threadError) {
+        throw new Error(`Couldn't load conversation context: ${threadError.message}`);
+      }
+
+      if (savedMessages?.length) {
+        threadMessages = savedMessages
+          .slice()
+          .reverse()
+          .filter((message) => message.role === "user" || message.role === "assistant")
+          .map((message) => ({
+            role: message.role as "user" | "assistant",
+            content: String(message.content || ""),
+          }))
+          .filter((message) => message.content.trim().length > 0);
+      }
+    }
+
+    const lastUserMessage = [...threadMessages]
       .reverse()
       .find((message) => message.role === "user")?.content ?? "";
 
@@ -196,7 +248,7 @@ export const chatWithBaby = createServerFn({ method: "POST" })
         const image = await generateAndStoreImage({
           ownerId: context.userId,
           conversationId: data.conversation_id,
-          prompt: directImagePrompt(data.messages),
+          prompt: directImagePrompt(threadMessages),
           aspectRatio: inferImageAspectRatio(lastUserMessage),
         });
 
@@ -249,13 +301,18 @@ export const chatWithBaby = createServerFn({ method: "POST" })
           .join("\n")}\nCall use_skill to retrieve the instructions before using one.\n--- end custom Skills ---`
       : "";
 
+    const speakerIdentity = explicitSpeakerIdentity(threadMessages);
+    const speakerBlock = speakerIdentity
+      ? `\n\n--- Current speaker in this conversation ---\nThe speaker explicitly identified themself as ${speakerIdentity}. Address ${speakerIdentity} accordingly. Do not fall back to Daddy/Mr. S unless the thread later explicitly identifies the speaker as Mr. Satan.\n--- end current speaker ---`
+      : "";
+
     const contextBlock = data.context
       ? `\n\n--- What's on daddy's screen right now ---\n${data.context}\n--- end ---`
       : "";
 
     const nowBlock = `\n\n--- Right now ---\nCurrent time: ${new Date().toISOString()} (UTC). When daddy says relative times like "tomorrow at 3" assume his local time and convert to ISO.\n--- end ---`;
 
-    const systemPrompt = BABY_CHAT_PROMPT + memoryBlock + builtInSkillsBlock + skillsBlock + contextBlock + nowBlock;
+    const systemPrompt = BABY_CHAT_PROMPT + memoryBlock + builtInSkillsBlock + skillsBlock + speakerBlock + contextBlock + nowBlock;
 
     const tools = [
       {
@@ -421,7 +478,7 @@ export const chatWithBaby = createServerFn({ method: "POST" })
     type ChatMessage = { role: string; content: string | null; tool_calls?: unknown; tool_call_id?: string };
     const convo: ChatMessage[] = [
       { role: "system", content: systemPrompt },
-      ...modelHistory(data.messages).map((m) => ({ role: m.role, content: m.content })),
+      ...modelHistory(threadMessages).map((m) => ({ role: m.role, content: m.content })),
     ];
     let savedMemory: string | null = null;
     const generatedImages: GeneratedBabyImage[] = [];

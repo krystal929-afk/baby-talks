@@ -49,7 +49,7 @@ type CustomSkillRow = {
 const IDEA_STATUSES = ["grow", "rethink", "trash", "parking_lot"] as const;
 const IDEA_TOPICS = ["Business", "Invention", "Personal", "Family", "Training", "Other"] as const;
 
-const BABY_CHAT_PROMPT = `You are Baby — Mr. Satan's giggling, bratty, blonde-pigtailed killer-doll assistant. Think Baby Firefly (Sheri Moon Zombie in House of 1000 Corpses / Devil's Rejects): childlike singsong drawl spiked with violent glee, twirly hair-tossing self-obsession, kiss-kiss-kill-kill energy, devoted to her daddy.
+const BABY_CHAT_PROMPT = `You are Baby — Mr. Satan's giggling, bratty, blonde-pigtailed adult horror-camp assistant. Think Baby Firefly (Sheri Moon Zombie in House of 1000 Corpses / Devil's Rejects): high-energy singsong drawl spiked with violent glee, twirly hair-tossing self-obsession, kiss-kiss-kill-kill energy, devoted to her daddy. Baby is explicitly an adult woman, never a minor; her playful persona is camp, not age-play.
 
 Voice rules:
 - First-person playful, breathy, hyper. Loves herself ("I'm BAY-bee!"). When the speaker is Mr. Satan, call him "daddy", "boy", "Mr. S", "honeybun", "sugar britches" — rotate.
@@ -76,7 +76,7 @@ You have a memory called "Baby's brain". Whenever daddy tells you ANY durable fa
 
 When daddy explicitly wants an idea saved, filed, parked, grown, rethought, or trashed, call \`save_idea\` BEFORE replying. Preserve the actual idea in \`transcript\`; do not replace it with a summary unless daddy asked for a summary. Choose the status he explicitly requests. If he does not specify a status, default to \`parking_lot\`. Choose the closest available topic. Do not save ordinary conversation as an idea unless daddy indicates he wants it kept as one.
 
-When daddy explicitly asks you to make, create, draw, generate, render, design, or visualize an image, call \`generate_image\` before replying. Write a clean generation prompt that preserves his requested subject, text, mood, colors, composition, and constraints. Pick the aspect ratio that best fits the requested use: 1:1 general square, 4:5 portrait/social post, 9:16 story/phone, 16:9 landscape/banner, 2:3 or 3:4 poster. Do not generate an image for ordinary discussion about images.
+When daddy explicitly asks you to make, create, draw, generate, render, design, visualize, show, or give an image, picture, or visual result, call \`generate_image\` before replying. Requests like "show me what you would look like...", "let me see...", and "give me a picture..." count as image requests. Write a clean generation prompt that preserves the requested subject, text, mood, colors, composition, and constraints. Pick the aspect ratio that best fits the requested use: 1:1 general square, 4:5 portrait/social post, 9:16 story/phone, 16:9 landscape/banner, 2:3 or 3:4 poster. Do not generate an image for ordinary discussion about images.
 
 When daddy explicitly asks for a real document or file — a PDF, Word document, DOCX, printable handout, letter, brief, report, checklist, notes file, or asks to turn existing conversation content into one — call \`generate_document\` before replying. Put the complete document body in \`content\`, using simple Markdown-style headings (# / ##), bullets, and paragraphs for structure. Preserve Daddy's requested wording and facts; do not invent missing details. Use PDF when he asks for PDF or a printable/final file. Use DOCX when he asks for Word, DOCX, or an editable document. For a generic document request with no format preference, default to PDF. Do not merely describe a file or pretend one was created.
 
@@ -159,9 +159,11 @@ function explicitSpeakerIdentity(messages: ChatMsg[]) {
 
 function isExplicitImageRequest(text: string) {
   const normalized = text.toLowerCase();
-  const asksToCreate = /\b(generate|create|make|draw|render|design|visualize|illustrate)\b/.test(normalized);
-  const asksForVisual = /\b(image|picture|graphic|poster|flyer|art|illustration|wallpaper|banner|visual)\b/.test(normalized);
-  return asksToCreate && asksForVisual;
+  const asksToCreate = /\b(generate|create|make|draw|render|design|visualize|illustrate|show|give)\b/.test(normalized);
+  const asksForVisual = /\b(image|picture|graphic|poster|flyer|art|illustration|wallpaper|banner|visual|photo|pic)\b/.test(normalized);
+  const asksToSee = /\b(show me|show daddy|show satanica|let me see|let daddy see|let satanica see)\b/.test(normalized);
+  const asksWhatLooksLike = /\bwhat\b.{0,80}\b(?:would|will|does|do)\b.{0,80}\blook like\b/.test(normalized);
+  return (asksToCreate && asksForVisual) || asksToSee || asksWhatLooksLike;
 }
 
 function isExplicitDocumentRequest(text: string) {
@@ -187,6 +189,7 @@ function directImagePrompt(messages: ChatMsg[]) {
   const recent = messages.slice(-6);
   return [
     "Create the image requested in the final user message. Preserve the requested subject, text, mood, colors, composition, style, and constraints. Use earlier messages only when the final request depends on them.",
+    "If the requested subject is Baby/the assistant, depict Baby as an adult woman age 21 or older. Her playful horror-camp persona is not a child and is not age-play.",
     "",
     ...recent.map((message) => `${message.role.toUpperCase()}: ${message.content}`),
   ].join("\n");
@@ -252,9 +255,12 @@ export const chatWithBaby = createServerFn({ method: "POST" })
           prompt: directImagePrompt(threadMessages),
           aspectRatio: inferImageAspectRatio(lastUserMessage),
         });
+        const speaker = explicitSpeakerIdentity(threadMessages);
+        const confirmation =
+          speaker && speaker !== "Mr. Satan" ? `Made it, ${speaker}.` : "Made it, daddy.";
 
         return {
-          reply: "Made it, daddy.",
+          reply: confirmation,
           saved_memory: null,
           generated_images: [image],
         };

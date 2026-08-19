@@ -24,8 +24,22 @@ export type GeneratedBabyImage = {
   url: string;
 };
 
+type ReferenceImage = {
+  mimeType: string;
+  base64: string;
+};
+
 const IMAGE_BUCKET = "baby-images";
+const UPLOAD_BUCKET = "baby-uploads";
 const DEFAULT_IMAGE_MODEL = "gemini-3.1-flash-lite-image";
+const RECENT_REFERENCE_WINDOW_MS = 5 * 60 * 1000;
+const GEMINI_REFERENCE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
 const BABY_VISUAL_IDENTITY =
   "BABY VISUAL IDENTITY: When Baby/the assistant is a subject, depict her as an adult woman age 21 or older with BLONDE hair, normally styled in blonde pigtails. Keep her blonde unless the user's final request explicitly asks for a different hair color. Do not default her to brunette, black hair, or red hair. Her playful horror-camp persona is adult, not age-play.";
 
@@ -108,17 +122,81 @@ type InteractionResponse = {
   }>;
 };
 
+async function loadRecentReferenceImages({
+  supabase,
+  ownerId,
+  conversationId,
+}: {
+  supabase: ReturnType<typeof serviceClient>;
+  ownerId: string;
+  conversationId: string;
+}): Promise<ReferenceImage[]> {
+  const cutoff = new Date(Date.now() - RECENT_REFERENCE_WINDOW_MS).toISOString();
+  const { data: rows, error } = await supabase
+    .from("baby_uploads")
+    .select("id,storage_path,mime_type,last_used_at")
+    .eq("owner_id", ownerId)
+    .eq("conversation_id", conversationId)
+    .eq("kind", "image")
+    .gte("last_used_at", cutoff)
+    .order("last_used_at", { ascending: false })
+    .limit(4);
+
+  if (error) {
+    console.warn("Couldn't load Baby image references", error.message);
+    return [];
+  }
+
+  const references: ReferenceImage[] = [];
+  for (const row of rows ?? []) {
+    const mimeType = String(row.mime_type || "").toLowerCase();
+    if (!GEMINI_REFERENCE_MIME_TYPES.has(mimeType)) continue;
+
+    const { data: blob, error: downloadError } = await supabase.storage
+      .from(UPLOAD_BUCKET)
+      .download(row.storage_path);
+
+    if (downloadError || !blob) {
+      console.warn("Couldn't open Baby image reference", row.id, downloadError?.message);
+      continue;
+    }
+
+    const buffer = await blob.arrayBuffer();
+    if (!buffer.byteLength) continue;
+
+    references.push({
+      mimeType,
+      base64: Buffer.from(buffer).toString("base64"),
+    });
+  }
+
+  return references;
+}
+
 async function requestGeminiImage({
   apiKey,
   model,
   prompt,
   aspectRatio,
+  referenceImages,
 }: {
   apiKey: string;
   model: string;
   prompt: string;
   aspectRatio: ImageAspectRatio;
+  referenceImages: ReferenceImage[];
 }) {
+  const input = referenceImages.length
+    ? [
+        { type: "text", text: prompt },
+        ...referenceImages.map((image) => ({
+          type: "image",
+          mime_type: image.mimeType,
+          data: image.base64,
+        })),
+      ]
+    : prompt;
+
   const response = await fetch(
     "https://generativelanguage.googleapis.com/v1beta/interactions",
     {
@@ -129,7 +207,7 @@ async function requestGeminiImage({
       },
       body: JSON.stringify({
         model,
-        input: prompt,
+        input,
         response_format: {
           type: "image",
           mime_type: "image/jpeg",
@@ -147,6 +225,7 @@ async function requestGeminiImage({
       status: response.status,
       model,
       aspectRatio,
+      referenceCount: referenceImages.length,
       providerMessage,
     });
 
@@ -167,6 +246,7 @@ async function requestGeminiImage({
     console.error("Gemini interaction returned no image", {
       model,
       aspectRatio,
+      referenceCount: referenceImages.length,
       status: json.status,
       detail,
     });
@@ -216,11 +296,22 @@ export async function generateAndStoreImage({
     throw new Error("Conversation not found");
   }
 
+  const referenceImages = await loadRecentReferenceImages({
+    supabase,
+    ownerId,
+    conversationId,
+  });
+
+  const referenceInstruction = referenceImages.length
+    ? "\n\nREFERENCE IMAGE RULES: The user attached the image input(s) in this same turn. Treat them as the source material for the requested edit, recreation, visual example, composition, or identity reference. Preserve requested unchanged details instead of inventing replacements."
+    : "";
+
   const generated = await requestGeminiImage({
     apiKey,
     model,
-    prompt: generationPrompt,
+    prompt: `${generationPrompt}${referenceInstruction}`,
     aspectRatio: ratio,
+    referenceImages,
   });
 
   const mimeType = generated.mimeType;

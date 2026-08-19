@@ -269,6 +269,17 @@ export const describeBabyUploads = createServerFn({ method: "POST" })
     if (error) throw new Error(`Couldn't read uploads: ${error.message}`);
     if (!rows?.length) throw new Error("Couldn't find those uploads.");
 
+    const { error: usageError } = await supabase
+      .from("baby_uploads")
+      .update({ last_used_at: new Date().toISOString() })
+      .eq("owner_id", context.userId)
+      .eq("conversation_id", data.conversation_id)
+      .in("id", rows.map((row) => row.id));
+
+    if (usageError) {
+      console.warn("Couldn't mark Baby uploads as used", usageError.message);
+    }
+
     const documents: Array<{ name: string; blob: Blob }> = [];
     for (const row of rows) {
       const { data: blob, error: downloadError } = await supabase.storage

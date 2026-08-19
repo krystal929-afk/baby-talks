@@ -25,16 +25,9 @@ function configureUtterance(utt: SpeechSynthesisUtterance) {
   if (preferred) utt.voice = preferred;
 }
 
-// Create this synchronously inside a tap/press handler on iPhone.
-// iOS Safari requires speechSynthesis.speak() to be invoked from within a user
-// gesture. Warming with a separate cancel+speak race causes "canceled" errors,
-// so we just unlock the audio context and pre-build the utterance object.
 export function createSpeechHandle(): SpeechHandle {
   prepareAudioPlayback();
 
-  // Pre-create an Audio element inside the user gesture. iOS Safari needs the
-  // element to be instantiated and a play() attempt made within the gesture
-  // for any later src assignment + play() to be allowed.
   let audio: HTMLAudioElement | null = null;
   if (typeof window !== "undefined") {
     try {
@@ -97,7 +90,7 @@ function browserSpeak(text: string, handle?: SpeechHandle): Promise<boolean> {
   });
 }
 
-type SpeechProvider = "elevenlabs" | "cloudflare" | "browser" | "none";
+type SpeechProvider = "azure" | "elevenlabs" | "cloudflare" | "browser" | "none";
 
 /** Speak using Baby's server voice, with browser speech as the final fallback. */
 export async function speak(
@@ -109,7 +102,12 @@ export async function speak(
   try {
     const res = await speakBaby({ data: { text } });
     if (res.audio) {
-      const provider: SpeechProvider = res.provider === "cloudflare" ? "cloudflare" : "elevenlabs";
+      const provider: SpeechProvider =
+        res.provider === "azure"
+          ? "azure"
+          : res.provider === "cloudflare"
+            ? "cloudflare"
+            : "elevenlabs";
 
       try {
         await playBase64Mp3(res.audio);

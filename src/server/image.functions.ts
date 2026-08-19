@@ -26,6 +26,8 @@ export type GeneratedBabyImage = {
 
 const IMAGE_BUCKET = "baby-images";
 const DEFAULT_IMAGE_MODEL = "gemini-3.1-flash-lite-image";
+const BABY_VISUAL_IDENTITY =
+  "BABY VISUAL IDENTITY: When Baby/the assistant is a subject, depict her as an adult woman age 21 or older with BLONDE hair, normally styled in blonde pigtails. Keep her blonde unless the user's final request explicitly asks for a different hair color. Do not default her to brunette, black hair, or red hair. Her playful horror-camp persona is adult, not age-play.";
 
 function serviceClient() {
   const url = process.env.SUPABASE_URL;
@@ -64,6 +66,17 @@ function base64ToBytes(base64: string) {
   }
 
   return bytes;
+}
+
+function withBabyVisualIdentity(prompt: string) {
+  const lastUserIndex = prompt.lastIndexOf("USER:");
+  const lastUserText = lastUserIndex >= 0 ? prompt.slice(lastUserIndex + 5) : "";
+  const directBabyReference = /\b(baby|you|your|yourself)\b/i.test(lastUserText);
+  const standaloneBabyPrompt =
+    lastUserIndex < 0 && /\b(baby|the assistant)\b/i.test(prompt);
+
+  if (!directBabyReference && !standaloneBabyPrompt) return prompt;
+  return `${BABY_VISUAL_IDENTITY}\n\n${prompt}`;
 }
 
 function googleErrorMessage(body: string) {
@@ -187,6 +200,7 @@ export async function generateAndStoreImage({
     throw new Error("Image prompt required");
   }
 
+  const generationPrompt = withBabyVisualIdentity(cleanPrompt);
   const ratio = normalizeAspectRatio(aspectRatio);
   const model = process.env.IMAGE_AI_MODEL || DEFAULT_IMAGE_MODEL;
   const supabase = serviceClient();
@@ -205,7 +219,7 @@ export async function generateAndStoreImage({
   const generated = await requestGeminiImage({
     apiKey,
     model,
-    prompt: cleanPrompt,
+    prompt: generationPrompt,
     aspectRatio: ratio,
   });
 

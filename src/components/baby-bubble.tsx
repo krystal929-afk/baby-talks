@@ -5,13 +5,16 @@ import {
 import {
   Check,
   Copy,
+  Loader2,
   ThumbsDown,
   ThumbsUp,
+  Volume2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { rateBabyResponse } from "@/server/message-feedback.functions";
 import { cn } from "@/lib/utils";
+import { createSpeechHandle, speak } from "@/lib/speak";
 
 type Feedback =
   | "up"
@@ -85,6 +88,9 @@ export function BabyBubble({
     useState(false);
 
   const [savingFeedback, setSavingFeedback] =
+    useState(false);
+
+  const [speaking, setSpeaking] =
     useState(false);
 
   useEffect(() => {
@@ -166,6 +172,29 @@ export function BabyBubble({
         "Couldn't copy that one.",
       );
     }
+  }
+
+  function readAloud() {
+    if (speaking) return;
+
+    // Must be created synchronously inside the tap for iPhone audio permission.
+    const handle = createSpeechHandle();
+    setSpeaking(true);
+
+    void speak(text, handle)
+      .then((result) => {
+        if (result.error) {
+          toast.error("Baby couldn't get her voice out.", {
+            description: result.error,
+          });
+        }
+      })
+      .catch((error) => {
+        toast.error("Baby couldn't get her voice out.", {
+          description: error instanceof Error ? error.message : "Voice playback failed",
+        });
+      })
+      .finally(() => setSpeaking(false));
   }
 
   async function rate(
@@ -320,6 +349,21 @@ export function BabyBubble({
                 <Check className="size-3.5" />
               ) : (
                 <Copy className="size-3.5" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={readAloud}
+              disabled={speaking}
+              className="rounded-md p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-60"
+              aria-label="Read response aloud"
+              title="Read aloud"
+            >
+              {speaking ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Volume2 className="size-3.5" />
               )}
             </button>
           </div>

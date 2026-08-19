@@ -8,7 +8,9 @@ const TTSInput = z.object({
 });
 
 const VOICE_ID = "q9N7djfjET83mt2m58Rd"; // Baby (cloned)
-const CLOUDFLARE_TTS_MODEL = "@cf/myshell-ai/melotts";
+const CLOUDFLARE_AURA_MODEL = "@cf/deepgram/aura-1";
+const CLOUDFLARE_MELO_MODEL = "@cf/myshell-ai/melotts";
+const CLOUDFLARE_AURA_SPEAKER = "asteria";
 
 type VoiceProvider = "elevenlabs" | "cloudflare" | null;
 
@@ -84,23 +86,17 @@ async function elevenLabsSpeech(text: string): Promise<VoiceResult> {
   }
 }
 
-async function cloudflareSpeech(text: string): Promise<VoiceResult> {
+async function workersAiAudio(
+  model: string,
+  input: Record<string, unknown>,
+): Promise<VoiceResult> {
   try {
     const ai = (env as unknown as { AI?: AiBinding }).AI;
     if (!ai) {
       return { audio: null, error: "Workers AI binding unavailable", provider: null };
     }
 
-    const result = await ai.run(
-      CLOUDFLARE_TTS_MODEL,
-      {
-        prompt: text,
-        lang: "en",
-      },
-      {
-        returnRawResponse: true,
-      },
-    );
+    const result = await ai.run(model, input, { returnRawResponse: true });
 
     if (result instanceof Response) {
       if (!result.ok) {
@@ -136,9 +132,8 @@ async function cloudflareSpeech(text: string): Promise<VoiceResult> {
     }
 
     if (result instanceof ReadableStream) {
-      const response = new Response(result);
       return {
-        audio: toBase64(await response.arrayBuffer()),
+        audio: toBase64(await new Response(result).arrayBuffer()),
         error: null,
         provider: "cloudflare",
       };
@@ -159,7 +154,7 @@ async function cloudflareSpeech(text: string): Promise<VoiceResult> {
 
     throw new Error("Workers AI returned no audio");
   } catch (error) {
-    console.warn("Workers AI TTS failed", error);
+    console.warn(`Workers AI TTS failed for ${model}`, error);
     return {
       audio: null,
       error: error instanceof Error ? error.message : "Workers AI TTS failed",
@@ -168,12 +163,35 @@ async function cloudflareSpeech(text: string): Promise<VoiceResult> {
   }
 }
 
+async function cloudflareSpeech(text: string): Promise<VoiceResult> {
+  // Aura sounds substantially more natural than MeloTTS. Use Melo only as the
+  // cheap emergency fallback if Aura is unavailable or the daily AI allowance
+  // is exhausted.
+  const aura = await workersAiAudio(CLOUDFLARE_AURA_MODEL, {
+    text,
+    speaker: CLOUDFLARE_AURA_SPEAKER,
+    encoding: "mp3",
+  });
+  if (aura.audio) return aura;
+
+  const melo = await workersAiAudio(CLOUDFLARE_MELO_MODEL, {
+    prompt: text,
+    lang: "en",
+  });
+  if (melo.audio) return melo;
+
+  return {
+    audio: null,
+    error: aura.error || melo.error || "Workers AI TTS unavailable",
+    provider: null,
+  };
+}
+
 export const speakBaby = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => TTSInput.parse(d))
   .handler(async ({ data }): Promise<VoiceResult> => {
-    // Keep the cloned Baby voice when it is available, but never make speech
-    // depend on a paid ElevenLabs subscription. Workers AI is the free fallback.
+    // Best voice first, then free Cloudflare Aura, then low-cost MeloTTS.
     const eleven = await elevenLabsSpeech(data.text);
     if (eleven.audio) return eleven;
 

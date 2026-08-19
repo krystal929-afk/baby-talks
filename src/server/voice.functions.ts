@@ -13,6 +13,7 @@ const AZURE_STYLE = "chat";
 const CLOUDFLARE_AURA_MODEL = "@cf/deepgram/aura-1";
 const CLOUDFLARE_MELO_MODEL = "@cf/myshell-ai/melotts";
 const CLOUDFLARE_AURA_SPEAKER = "asteria";
+const PROVIDER_TIMEOUT_MS = 6500;
 
 type VoiceProvider = "azure" | "elevenlabs" | "cloudflare" | null;
 
@@ -30,6 +31,15 @@ type AiBinding = {
   ) => Promise<unknown>;
 };
 
+function runtimeValue(name: string) {
+  const workerEnv = env as unknown as Record<string, unknown>;
+  const fromBinding = workerEnv[name];
+  if (typeof fromBinding === "string" && fromBinding.trim()) return fromBinding.trim();
+
+  const fromProcess = process.env[name];
+  return typeof fromProcess === "string" ? fromProcess.trim() : "";
+}
+
 function toBase64(buffer: ArrayBuffer) {
   return Buffer.from(buffer).toString("base64");
 }
@@ -43,9 +53,42 @@ function escapeXml(value: string) {
     .replace(/'/g, "&apos;");
 }
 
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  label: string,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(`${label} timed out`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out`)), PROVIDER_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 async function azureSpeech(text: string): Promise<VoiceResult> {
-  const apiKey = process.env.AZURE_SPEECH_KEY;
-  const region = process.env.AZURE_SPEECH_REGION || "eastus";
+  const apiKey = runtimeValue("AZURE_SPEECH_KEY");
+  const region = runtimeValue("AZURE_SPEECH_REGION") || "eastus";
 
   if (!apiKey) {
     return { audio: null, error: "Azure Speech not configured", provider: null };
@@ -65,16 +108,20 @@ async function azureSpeech(text: string): Promise<VoiceResult> {
 </speak>`.trim();
 
   try {
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Ocp-Apim-Subscription-Key": apiKey,
-        "Content-Type": "application/ssml+xml",
-        "X-Microsoft-OutputFormat": "audio-24khz-96kbitrate-mono-mp3",
-        "User-Agent": "Baby-Firefly",
+    const res = await fetchWithTimeout(
+      endpoint,
+      {
+        method: "POST",
+        headers: {
+          "Ocp-Apim-Subscription-Key": apiKey,
+          "Content-Type": "application/ssml+xml",
+          "X-Microsoft-OutputFormat": "audio-24khz-96kbitrate-mono-mp3",
+          "User-Agent": "Baby-Firefly",
+        },
+        body: ssml,
       },
-      body: ssml,
-    });
+      "Azure Speech",
+    );
 
     if (!res.ok) {
       const detail = await res.text();
@@ -86,8 +133,13 @@ async function azureSpeech(text: string): Promise<VoiceResult> {
       };
     }
 
+    const buffer = await res.arrayBuffer();
+    if (!buffer.byteLength) {
+      return { audio: null, error: "Azure Speech returned empty audio", provider: null };
+    }
+
     return {
-      audio: toBase64(await res.arrayBuffer()),
+      audio: toBase64(buffer),
       error: null,
       provider: "azure",
     };
@@ -102,13 +154,13 @@ async function azureSpeech(text: string): Promise<VoiceResult> {
 }
 
 async function elevenLabsSpeech(text: string): Promise<VoiceResult> {
-  const apiKey = process.env.ELEVENLABS_API_KEY;
+  const apiKey = runtimeValue("ELEVENLABS_API_KEY");
   if (!apiKey) {
     return { audio: null, error: "ElevenLabs not configured", provider: null };
   }
 
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}?output_format=mp3_44100_128`,
       {
         method: "POST",
@@ -128,6 +180,7 @@ async function elevenLabsSpeech(text: string): Promise<VoiceResult> {
           },
         }),
       },
+      "ElevenLabs",
     );
 
     if (!res.ok) {
@@ -140,8 +193,13 @@ async function elevenLabsSpeech(text: string): Promise<VoiceResult> {
       };
     }
 
+    const buffer = await res.arrayBuffer();
+    if (!buffer.byteLength) {
+      return { audio: null, error: "ElevenLabs returned empty audio", provider: null };
+    }
+
     return {
-      audio: toBase64(await res.arrayBuffer()),
+      audio: toBase64(buffer),
       error: null,
       provider: "elevenlabs",
     };
@@ -165,7 +223,10 @@ async function workersAiAudio(
       return { audio: null, error: "Workers AI binding unavailable", provider: null };
     }
 
-    const result = await ai.run(model, input, { returnRawResponse: true });
+    const result = await withTimeout(
+      ai.run(model, input, { returnRawResponse: true }),
+      `Workers AI ${model}`,
+    );
 
     if (result instanceof Response) {
       if (!result.ok) {
@@ -173,14 +234,17 @@ async function workersAiAudio(
         throw new Error(`Workers AI TTS ${result.status}: ${detail}`);
       }
 
+      const buffer = await result.arrayBuffer();
+      if (!buffer.byteLength) throw new Error("Workers AI returned empty audio");
       return {
-        audio: toBase64(await result.arrayBuffer()),
+        audio: toBase64(buffer),
         error: null,
         provider: "cloudflare",
       };
     }
 
     if (result instanceof ArrayBuffer) {
+      if (!result.byteLength) throw new Error("Workers AI returned empty audio");
       return {
         audio: toBase64(result),
         error: null,
@@ -189,6 +253,7 @@ async function workersAiAudio(
     }
 
     if (result instanceof Uint8Array) {
+      if (!result.byteLength) throw new Error("Workers AI returned empty audio");
       const exact = result.buffer.slice(
         result.byteOffset,
         result.byteOffset + result.byteLength,
@@ -201,8 +266,10 @@ async function workersAiAudio(
     }
 
     if (result instanceof ReadableStream) {
+      const buffer = await new Response(result).arrayBuffer();
+      if (!buffer.byteLength) throw new Error("Workers AI returned empty audio");
       return {
-        audio: toBase64(await new Response(result).arrayBuffer()),
+        audio: toBase64(buffer),
         error: null,
         provider: "cloudflare",
       };
@@ -257,7 +324,8 @@ export const speakBaby = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => TTSInput.parse(d))
   .handler(async ({ data }): Promise<VoiceResult> => {
-    // Azure is the stable free default so Baby keeps the same voice every time.
+    // Stable free voice first. Every provider has a hard timeout so speech can
+    // always fall through instead of leaving the UI spinning forever.
     const azure = await azureSpeech(data.text);
     if (azure.audio) return azure;
 

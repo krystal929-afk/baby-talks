@@ -225,14 +225,34 @@ function cleanFilename(value: string, format: DocumentFormat) {
   return `${withoutExtension || "baby-document"}.${format}`;
 }
 
+async function callerUserId(req: Request, url: string, serviceKey: string) {
+  const provided = req.headers.get("authorization")?.trim() || "";
+  if (!provided.startsWith("Bearer ")) return null;
+
+  const token = provided.slice("Bearer ".length).trim();
+  if (!token) return null;
+
+  const authClient = createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await authClient.auth.getUser(token);
+
+  if (error || !data.user?.id) return null;
+  return data.user.id;
+}
+
 export default {
   async fetch(req: Request) {
     if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
     const url = Deno.env.get("SUPABASE_URL") || "";
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const provided = req.headers.get("authorization") || "";
-    if (!serviceKey || provided !== `Bearer ${serviceKey}`) {
+    if (!url || !serviceKey) {
+      return json({ error: "renderer_not_configured" }, 500);
+    }
+
+    const callerId = await callerUserId(req, url, serviceKey);
+    if (!callerId) {
       return json({ error: "unauthorized" }, 401);
     }
 
@@ -248,6 +268,7 @@ export default {
       if (!ownerId || !conversationId || !title || !content) {
         return json({ error: "owner_id, conversation_id, title, and content are required" }, 400);
       }
+      if (callerId !== ownerId) return json({ error: "forbidden" }, 403);
       if (content.length > 20000) return json({ error: "document content too long" }, 400);
 
       const supabase = createClient(url, serviceKey, {

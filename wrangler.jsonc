@@ -12,14 +12,17 @@
   "vars": {
     "SUPABASE_URL": "https://jtymnvlzbabobroabzlf.supabase.co",
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_lE--DJbQlU1J7A42U8vi3A_gTAr8wUW",
-    "CHAT_AI_MODEL": "openrouter/free"
+    "CHAT_AI_MODEL": "openrouter/free",
+    "AZURE_SPEECH_REGION": "eastus",
+    "AZURE_SPEECH_ENDPOINT": "https://eastus.api.cognitive.microsoft.com/"
   },
 
   "secrets": {
     "required": [
       "SUPABASE_SERVICE_ROLE_KEY",
       "OPENROUTER_API_KEY",
-      "GEMINI_API_KEY"
+      "GEMINI_API_KEY",
+      "AZURE_SPEECH_KEY"
     ]
   },
 

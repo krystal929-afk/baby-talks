@@ -31,6 +31,7 @@ import { toast } from "sonner";
 
 import { BabyBubble } from "@/components/baby-bubble";
 import { BabySkillsPane } from "@/components/baby-skills-pane";
+import { BabyUploadButton } from "@/components/baby-upload-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -72,6 +73,10 @@ import {
   renameConversation,
   type BabyConversation,
 } from "@/server/conversations.functions";
+import {
+  describeBabyUploads,
+  type BabyUpload,
+} from "@/server/upload.functions";
 
 const ACTIVE_CONVERSATION_KEY = "baby-active-conversation-id";
 const VOICE_DRAFT_EVENT = "baby:voice-draft";
@@ -100,6 +105,7 @@ type SendRequest = {
   text: string;
   spoken: boolean;
   speechHandle?: SpeechHandle;
+  uploads: BabyUpload[];
 };
 
 type ChatImage = {
@@ -322,6 +328,7 @@ function ChatPane({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState("");
   const [newChatMode, setNewChatMode] = useState(false);
+  const [pendingUploads, setPendingUploads] = useState<BabyUpload[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     return window.localStorage.getItem(ACTIVE_CONVERSATION_KEY);
@@ -407,6 +414,7 @@ function ChatPane({
     setMessages([]);
     setInput("");
     setInputOrigin("text");
+    setPendingUploads([]);
     setHistoryOpen(false);
   }, [setActiveConversation]);
 
@@ -415,6 +423,7 @@ function ChatPane({
       setNewChatMode(false);
       setActiveConversation(id);
       setMessages([]);
+      setPendingUploads([]);
       setHistoryOpen(false);
     },
     [setActiveConversation],
@@ -479,6 +488,7 @@ function ChatPane({
       if (id === conversationId) {
         setActiveConversation(null);
         setMessages([]);
+        setPendingUploads([]);
         setNewChatMode(false);
       }
       qc.invalidateQueries({ queryKey: ["baby_conversations"] });
@@ -515,7 +525,7 @@ function ChatPane({
   };
 
   const send = useMutation({
-    mutationFn: async ({ text, spoken, speechHandle }: SendRequest) => {
+    mutationFn: async ({ text, spoken, speechHandle, uploads }: SendRequest) => {
       let activeConversationId = conversationId;
       let next: DisplayChatMsg[];
 
@@ -552,10 +562,31 @@ function ChatPane({
 
       setMessages(next);
 
+      let attachmentContext = "";
+      if (uploads.length) {
+        const described = await describeBabyUploads({
+          data: {
+            conversation_id: activeConversationId,
+            upload_ids: uploads.map((upload) => upload.id),
+          },
+        });
+        attachmentContext = described.context;
+      }
+
+      const combinedContext = [
+        context,
+        attachmentContext
+          ? `--- Attachments the user gave Baby for this message ---\n${attachmentContext}\n--- end attachments ---`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n")
+        .slice(0, 14_000);
+
       const res = await chatWithBaby({
         data: {
           messages: next.slice(-200).map(({ role, content }) => ({ role, content })),
-          context,
+          context: combinedContext || undefined,
           conversation_id: activeConversationId,
         },
       });
@@ -571,6 +602,7 @@ function ChatPane({
       ];
 
       setMessages(finalMessages);
+      setPendingUploads([]);
 
       if (spoken) {
         void speak(res.reply, speechHandle).then((voiceResult) => {
@@ -621,7 +653,7 @@ function ChatPane({
     const speechHandle = spoken ? createSpeechHandle() : undefined;
     setInput("");
     setInputOrigin("text");
-    send.mutate({ text, spoken, speechHandle });
+    send.mutate({ text, spoken, speechHandle, uploads: pendingUploads });
   };
 
   const onSubmit = (e: FormEvent) => {
@@ -674,6 +706,16 @@ function ChatPane({
     setInputOrigin("voice");
     window.requestAnimationFrame(() => inputRef.current?.focus());
   };
+
+  const handleUploadConversationCreated = useCallback(
+    (id: string) => {
+      setActiveConversation(id);
+      setNewChatMode(false);
+      void qc.invalidateQueries({ queryKey: ["baby_conversations"] });
+      void qc.invalidateQueries({ queryKey: ["baby_conversation", id] });
+    },
+    [qc, setActiveConversation],
+  );
 
   const currentConversation = conversations.find(
     (conversation) => conversation.id === conversationId,
@@ -782,66 +824,115 @@ function ChatPane({
         )}
       </div>
 
-      <form onSubmit={onSubmit} className="flex gap-2 border-t border-border p-3">
-        <Textarea
-          ref={inputRef}
-          value={input}
-          onChange={(e) => {
-            setInput(e.target.value);
-            if (!e.target.value.trim()) setInputOrigin("text");
-          }}
-          placeholder={
-            !threadReady
-              ? "Opening conversation…"
-              : chatDictation.listening
-                ? chatDictation.interim || "Listening…"
-                : "Talk to Baby…"
-          }
-          rows={2}
-          className="resize-none"
-          disabled={!threadReady}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              submitChat();
-            }
-          }}
-        />
-
-        {chatDictation.supported && (
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            disabled={send.isPending || !threadReady}
-            onPointerDown={handleDictationStart}
-            onPointerUp={handleDictationEnd}
-            onPointerCancel={handleDictationEnd}
-            onContextMenu={(e) => e.preventDefault()}
-            className="shrink-0 self-stretch h-auto touch-none"
-            aria-label="Hold to dictate into chat"
-          >
-            {chatDictation.listening ? (
-              <Square className="size-4" fill="currentColor" />
-            ) : (
-              <Mic className="size-4" />
-            )}
-          </Button>
+      <div className="border-t border-border">
+        {pendingUploads.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto px-3 pt-2">
+            {pendingUploads.map((upload) => (
+              <div
+                key={upload.id}
+                className="relative flex max-w-[160px] shrink-0 items-center gap-2 rounded-lg border border-border bg-background/70 p-1.5 pr-7"
+              >
+                {upload.kind === "image" ? (
+                  <img
+                    src={upload.url}
+                    alt={upload.filename}
+                    className="size-10 rounded object-cover"
+                  />
+                ) : (
+                  <div className="flex size-10 items-center justify-center rounded bg-muted text-[9px] font-semibold uppercase text-muted-foreground">
+                    File
+                  </div>
+                )}
+                <span className="truncate text-[11px] text-foreground">
+                  {upload.filename}
+                </span>
+                <button
+                  type="button"
+                  className="absolute right-1 top-1 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  onClick={() =>
+                    setPendingUploads((current) =>
+                      current.filter((item) => item.id !== upload.id),
+                    )
+                  }
+                  aria-label={`Remove ${upload.filename}`}
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ))}
+          </div>
         )}
 
-        <Button
-          type="submit"
-          size="icon"
-          className="shrink-0 self-stretch h-auto"
-          disabled={send.isPending || !threadReady || !input.trim()}
-        >
-          {send.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Send className="size-4" />
+        <form onSubmit={onSubmit} className="flex gap-2 p-3">
+          <BabyUploadButton
+            conversationId={conversationId}
+            disabled={send.isPending || !threadReady || pendingUploads.length >= 4}
+            onConversationCreated={handleUploadConversationCreated}
+            onUploaded={(upload) =>
+              setPendingUploads((current) => [...current, upload].slice(-4))
+            }
+          />
+
+          <Textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              if (!e.target.value.trim()) setInputOrigin("text");
+            }}
+            placeholder={
+              !threadReady
+                ? "Opening conversation…"
+                : chatDictation.listening
+                  ? chatDictation.interim || "Listening…"
+                  : "Talk to Baby…"
+            }
+            rows={2}
+            className="resize-none"
+            disabled={!threadReady}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submitChat();
+              }
+            }}
+          />
+
+          {chatDictation.supported && (
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              disabled={send.isPending || !threadReady}
+              onPointerDown={handleDictationStart}
+              onPointerUp={handleDictationEnd}
+              onPointerCancel={handleDictationEnd}
+              onContextMenu={(e) => e.preventDefault()}
+              className="shrink-0 self-stretch h-auto touch-none"
+              aria-label="Hold to dictate into chat"
+            >
+              {chatDictation.listening ? (
+                <Square className="size-4" fill="currentColor" />
+              ) : (
+                <Mic className="size-4" />
+              )}
+            </Button>
           )}
-        </Button>
-      </form>
+
+          <Button
+            type="submit"
+            size="icon"
+            className="shrink-0 self-stretch h-auto"
+            disabled={send.isPending || !threadReady || !input.trim()}
+          >
+            {send.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Send className="size-4" />
+            )}
+          </Button>
+        </form>
+      </div>
 
       {historyOpen && (
         <div className="absolute inset-0 z-50 flex bg-black/70">

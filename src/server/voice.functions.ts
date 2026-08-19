@@ -7,12 +7,14 @@ const TTSInput = z.object({
   text: z.string().min(1).max(800),
 });
 
-const VOICE_ID = "q9N7djfjET83mt2m58Rd"; // Baby (cloned)
+const ELEVENLABS_VOICE_ID = "q9N7djfjET83mt2m58Rd"; // Baby (cloned)
+const AZURE_VOICE = "en-US-JennyNeural";
+const AZURE_STYLE = "chat";
 const CLOUDFLARE_AURA_MODEL = "@cf/deepgram/aura-1";
 const CLOUDFLARE_MELO_MODEL = "@cf/myshell-ai/melotts";
 const CLOUDFLARE_AURA_SPEAKER = "asteria";
 
-type VoiceProvider = "elevenlabs" | "cloudflare" | null;
+type VoiceProvider = "azure" | "elevenlabs" | "cloudflare" | null;
 
 type VoiceResult = {
   audio: string | null;
@@ -32,6 +34,73 @@ function toBase64(buffer: ArrayBuffer) {
   return Buffer.from(buffer).toString("base64");
 }
 
+function escapeXml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+async function azureSpeech(text: string): Promise<VoiceResult> {
+  const apiKey = process.env.AZURE_SPEECH_KEY;
+  const region = process.env.AZURE_SPEECH_REGION || "eastus";
+
+  if (!apiKey) {
+    return { audio: null, error: "Azure Speech not configured", provider: null };
+  }
+
+  const endpoint = `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`;
+  const ssml = `
+<speak version="1.0"
+  xmlns="http://www.w3.org/2001/10/synthesis"
+  xmlns:mstts="https://www.w3.org/2001/mstts"
+  xml:lang="en-US">
+  <voice name="${AZURE_VOICE}">
+    <mstts:express-as style="${AZURE_STYLE}" styledegree="1.15">
+      <prosody rate="+2%">${escapeXml(text)}</prosody>
+    </mstts:express-as>
+  </voice>
+</speak>`.trim();
+
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Ocp-Apim-Subscription-Key": apiKey,
+        "Content-Type": "application/ssml+xml",
+        "X-Microsoft-OutputFormat": "audio-24khz-96kbitrate-mono-mp3",
+        "User-Agent": "Baby-Firefly",
+      },
+      body: ssml,
+    });
+
+    if (!res.ok) {
+      const detail = await res.text();
+      console.warn("Azure Speech unavailable", res.status, detail);
+      return {
+        audio: null,
+        error: `Azure Speech error ${res.status}`,
+        provider: null,
+      };
+    }
+
+    return {
+      audio: toBase64(await res.arrayBuffer()),
+      error: null,
+      provider: "azure",
+    };
+  } catch (error) {
+    console.warn("Azure Speech failed", error);
+    return {
+      audio: null,
+      error: error instanceof Error ? error.message : "Azure Speech failed",
+      provider: null,
+    };
+  }
+}
+
 async function elevenLabsSpeech(text: string): Promise<VoiceResult> {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) {
@@ -40,7 +109,7 @@ async function elevenLabsSpeech(text: string): Promise<VoiceResult> {
 
   try {
     const res = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}?output_format=mp3_44100_128`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}?output_format=mp3_44100_128`,
       {
         method: "POST",
         headers: {
@@ -164,9 +233,6 @@ async function workersAiAudio(
 }
 
 async function cloudflareSpeech(text: string): Promise<VoiceResult> {
-  // Aura sounds substantially more natural than MeloTTS. Use Melo only as the
-  // cheap emergency fallback if Aura is unavailable or the daily AI allowance
-  // is exhausted.
   const aura = await workersAiAudio(CLOUDFLARE_AURA_MODEL, {
     text,
     speaker: CLOUDFLARE_AURA_SPEAKER,
@@ -191,7 +257,10 @@ export const speakBaby = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => TTSInput.parse(d))
   .handler(async ({ data }): Promise<VoiceResult> => {
-    // Best voice first, then free Cloudflare Aura, then low-cost MeloTTS.
+    // Azure is the stable free default so Baby keeps the same voice every time.
+    const azure = await azureSpeech(data.text);
+    if (azure.audio) return azure;
+
     const eleven = await elevenLabsSpeech(data.text);
     if (eleven.audio) return eleven;
 
@@ -200,7 +269,11 @@ export const speakBaby = createServerFn({ method: "POST" })
 
     return {
       audio: null,
-      error: cloudflare.error || eleven.error || "No server voice available",
+      error:
+        azure.error ||
+        eleven.error ||
+        cloudflare.error ||
+        "No server voice available",
       provider: null,
     };
   });

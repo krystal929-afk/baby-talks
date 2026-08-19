@@ -43,6 +43,12 @@ const GEMINI_REFERENCE_MIME_TYPES = new Set([
 const BABY_VISUAL_IDENTITY =
   "BABY VISUAL IDENTITY: When Baby/the assistant is a subject, depict her as an adult woman age 21 or older with BLONDE hair, normally styled in blonde pigtails. Keep her blonde unless the user's final request explicitly asks for a different hair color. Do not default her to brunette, black hair, or red hair. Her playful horror-camp persona is adult, not age-play.";
 
+const STRICT_PRESERVE_INSTRUCTION =
+  "STRICT IDENTITY-PRESERVING EDIT MODE: Treat the uploaded image as protected source material, not loose inspiration. Preserve the real person's identity and recognizable appearance as closely as possible. Preserve facial structure, eyes, nose, mouth, skin texture, expression, age, hair, hair color, beard/facial hair, tattoos, body proportions, clothing, accessories, pose, camera angle, crop, and framing unless the user's final request explicitly asks to change one of those things. Do not beautify, redesign, reinterpret, restyle, replace, or invent the person. Make ONLY the requested environmental/background change plus minimal lighting/color integration needed to blend the unchanged subject naturally into the new setting. The final result should look like the original photograph with the requested background edit, not a new portrait of a similar person.";
+
+const MR_SATAN_PRESERVE_HINT =
+  "SUBJECT IDENTITY NOTE: If the referenced man is Daddy/Mr. Satan, he is a specific real person. Keep him recognizable. He is tall and slender with long hair, a large beard, and visible tattoos. Do not replace his face with a generic man or alter his distinctive features.";
+
 function serviceClient() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -82,15 +88,68 @@ function base64ToBytes(base64: string) {
   return bytes;
 }
 
-function withBabyVisualIdentity(prompt: string) {
+function lastUserTextFromPrompt(prompt: string) {
   const lastUserIndex = prompt.lastIndexOf("USER:");
-  const lastUserText = lastUserIndex >= 0 ? prompt.slice(lastUserIndex + 5) : "";
+  return lastUserIndex >= 0
+    ? prompt.slice(lastUserIndex + 5).trim()
+    : prompt.trim();
+}
+
+function withBabyVisualIdentity(prompt: string) {
+  const lastUserText = lastUserTextFromPrompt(prompt);
+  const hasRoleTaggedUser = prompt.lastIndexOf("USER:") >= 0;
   const directBabyReference = /\b(baby|you|your|yourself)\b/i.test(lastUserText);
   const standaloneBabyPrompt =
-    lastUserIndex < 0 && /\b(baby|the assistant)\b/i.test(prompt);
+    !hasRoleTaggedUser && /\b(baby|the assistant)\b/i.test(prompt);
 
   if (!directBabyReference && !standaloneBabyPrompt) return prompt;
   return `${BABY_VISUAL_IDENTITY}\n\n${prompt}`;
+}
+
+function isStrictPreserveEdit(prompt: string) {
+  const text = lastUserTextFromPrompt(prompt).toLowerCase();
+
+  const directPreservePhrases = [
+    "change only the background",
+    "only change the background",
+    "background only",
+    "swap the background",
+    "replace the background",
+    "change the setting",
+    "only change the setting",
+    "keep him the same",
+    "keep her the same",
+    "keep them the same",
+    "keep him exactly the same",
+    "keep her exactly the same",
+    "same person",
+    "same photo but",
+    "keep the face",
+    "keep his face",
+    "keep her face",
+    "keep the tattoos",
+    "keep his tattoos",
+    "keep her tattoos",
+    "keep the outfit",
+    "keep his outfit",
+    "keep her outfit",
+  ];
+
+  if (directPreservePhrases.some((phrase) => text.includes(phrase))) return true;
+
+  const referenceLanguage =
+    /\b(use (?:this|the (?:uploaded )?(?:image|photo|picture)) as (?:the )?reference|use this photo|use this image|same (?:man|woman|guy|person)|put (?:him|her|them) (?:in|into|against|at))\b/i.test(text);
+  const backgroundLanguage =
+    /\b(background|setting|environment|scene|club|room|venue|location)\b/i.test(text);
+  const preserveLanguage =
+    /\b(keep|preserve|unchanged|exactly|same)\b/i.test(text);
+
+  return referenceLanguage && (backgroundLanguage || preserveLanguage);
+}
+
+function isMrSatanSubject(prompt: string) {
+  const text = lastUserTextFromPrompt(prompt);
+  return /\b(mr\.?\s*satan|mr\.?\s*s|daddy|george)\b/i.test(text);
 }
 
 function googleErrorMessage(body: string) {
@@ -126,10 +185,12 @@ async function loadRecentReferenceImages({
   supabase,
   ownerId,
   conversationId,
+  limit,
 }: {
   supabase: ReturnType<typeof serviceClient>;
   ownerId: string;
   conversationId: string;
+  limit: number;
 }): Promise<ReferenceImage[]> {
   const cutoff = new Date(Date.now() - RECENT_REFERENCE_WINDOW_MS).toISOString();
   const { data: rows, error } = await supabase
@@ -140,7 +201,7 @@ async function loadRecentReferenceImages({
     .eq("kind", "image")
     .gte("last_used_at", cutoff)
     .order("last_used_at", { ascending: false })
-    .limit(4);
+    .limit(Math.max(1, Math.min(4, limit)));
 
   if (error) {
     console.warn("Couldn't load Baby image references", error.message);
@@ -281,6 +342,7 @@ export async function generateAndStoreImage({
   }
 
   const generationPrompt = withBabyVisualIdentity(cleanPrompt);
+  const strictPreserve = isStrictPreserveEdit(cleanPrompt);
   const ratio = normalizeAspectRatio(aspectRatio);
   const model = process.env.IMAGE_AI_MODEL || DEFAULT_IMAGE_MODEL;
   const supabase = serviceClient();
@@ -300,16 +362,24 @@ export async function generateAndStoreImage({
     supabase,
     ownerId,
     conversationId,
+    limit: strictPreserve ? 1 : 4,
   });
 
   const referenceInstruction = referenceImages.length
     ? "\n\nREFERENCE IMAGE RULES: The user attached the image input(s) in this same turn. Treat them as the source material for the requested edit, recreation, visual example, composition, or identity reference. Preserve requested unchanged details instead of inventing replacements."
     : "";
 
+  const strictInstruction =
+    strictPreserve && referenceImages.length
+      ? `\n\n${STRICT_PRESERVE_INSTRUCTION}${
+          isMrSatanSubject(cleanPrompt) ? `\n\n${MR_SATAN_PRESERVE_HINT}` : ""
+        }`
+      : "";
+
   const generated = await requestGeminiImage({
     apiKey,
     model,
-    prompt: `${generationPrompt}${referenceInstruction}`,
+    prompt: `${generationPrompt}${referenceInstruction}${strictInstruction}`,
     aspectRatio: ratio,
     referenceImages,
   });

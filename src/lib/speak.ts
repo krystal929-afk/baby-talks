@@ -92,7 +92,23 @@ function browserSpeak(text: string, handle?: SpeechHandle): Promise<boolean> {
 
 type SpeechProvider = "azure" | "elevenlabs" | "cloudflare" | "browser" | "none";
 
-/** Speak using Baby's server voice, with browser speech as the final fallback. */
+async function serverVoiceWithTimeout(text: string) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("Server voice timed out")), 15000);
+  });
+
+  try {
+    return await Promise.race([
+      speakBaby({ data: { text } }),
+      timeout,
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** Speak using Baby's server voice, with browser speech as the guaranteed fallback. */
 export async function speak(
   text: string,
   handle?: SpeechHandle,
@@ -100,14 +116,9 @@ export async function speak(
   prepareAudioPlayback();
 
   try {
-    const res = await speakBaby({ data: { text } });
+    const res = await serverVoiceWithTimeout(text);
     if (res.audio) {
-      const provider: SpeechProvider =
-        res.provider === "azure"
-          ? "azure"
-          : res.provider === "cloudflare"
-            ? "cloudflare"
-            : "elevenlabs";
+      const provider: SpeechProvider = res.provider ?? "none";
 
       try {
         await playBase64Mp3(res.audio);
@@ -123,25 +134,33 @@ export async function speak(
         try {
           await handle.audio.play();
           await new Promise<void>((resolve) => {
-            handle.audio!.onended = () => resolve();
-            handle.audio!.onerror = () => resolve();
+            let settled = false;
+            const finish = () => {
+              if (settled) return;
+              settled = true;
+              window.clearTimeout(timer);
+              resolve();
+            };
+            const timer = window.setTimeout(finish, 60000);
+            handle.audio!.onended = finish;
+            handle.audio!.onerror = finish;
           });
           return { provider };
         } catch (e) {
           console.warn("Pre-warmed audio play failed:", e);
         }
       }
-
-      return { provider };
     }
     console.info("Server voice unavailable, falling back to browser:", res.error);
   } catch (e) {
-    console.warn("Server TTS failed, falling back to browser:", e);
+    console.warn("Server TTS failed or timed out, falling back to browser:", e);
   }
 
   if (hasSpeechSynthesis()) {
     const spoken = await browserSpeak(text, handle);
-    return spoken ? { provider: "browser" } : { provider: "browser", error: "Browser voice did not start" };
+    return spoken
+      ? { provider: "browser" }
+      : { provider: "browser", error: "Browser voice did not start" };
   }
 
   return { provider: "none", error: "No voice available on this device" };

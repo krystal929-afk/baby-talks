@@ -40,7 +40,6 @@ export function createSpeechHandle(): SpeechHandle {
     try {
       audio = new Audio();
       audio.muted = true;
-      // Kick a no-op play to consume the gesture; immediately pause.
       void audio.play().then(() => audio?.pause()).catch(() => undefined);
       audio.muted = false;
     } catch { audio = null; }
@@ -98,23 +97,27 @@ function browserSpeak(text: string, handle?: SpeechHandle): Promise<boolean> {
   });
 }
 
-/** Speak using ElevenLabs (cloned Baby voice), falling back to the browser. */
-export async function speak(text: string, handle?: SpeechHandle): Promise<{ provider: "elevenlabs" | "browser" | "none"; error?: string }> {
+type SpeechProvider = "elevenlabs" | "cloudflare" | "browser" | "none";
+
+/** Speak using Baby's server voice, with browser speech as the final fallback. */
+export async function speak(
+  text: string,
+  handle?: SpeechHandle,
+): Promise<{ provider: SpeechProvider; error?: string }> {
   prepareAudioPlayback();
 
-  // Try ElevenLabs first (cloned Baby voice)
   try {
     const res = await speakBaby({ data: { text } });
     if (res.audio) {
-      // WebAudio routes to the media channel (loud + respects volume slider).
-      // The HTMLAudioElement path on iOS often routes to the ringer channel
-      // and ends up barely audible, so prefer WebAudio when available.
+      const provider: SpeechProvider = res.provider === "cloudflare" ? "cloudflare" : "elevenlabs";
+
       try {
         await playBase64Mp3(res.audio);
-        return { provider: "elevenlabs" };
+        return { provider };
       } catch (e) {
         console.warn("WebAudio playback failed, trying pre-warmed element:", e);
       }
+
       if (handle?.audio) {
         handle.audio.muted = false;
         handle.audio.volume = 1;
@@ -125,16 +128,17 @@ export async function speak(text: string, handle?: SpeechHandle): Promise<{ prov
             handle.audio!.onended = () => resolve();
             handle.audio!.onerror = () => resolve();
           });
-          return { provider: "elevenlabs" };
+          return { provider };
         } catch (e) {
           console.warn("Pre-warmed audio play failed:", e);
         }
       }
-      return { provider: "elevenlabs" };
+
+      return { provider };
     }
-    console.info("ElevenLabs unavailable, falling back to browser:", res.error);
+    console.info("Server voice unavailable, falling back to browser:", res.error);
   } catch (e) {
-    console.warn("ElevenLabs TTS failed, falling back to browser:", e);
+    console.warn("Server TTS failed, falling back to browser:", e);
   }
 
   if (hasSpeechSynthesis()) {

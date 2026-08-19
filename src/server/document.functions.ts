@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
@@ -41,6 +42,17 @@ function serviceClient() {
   });
 }
 
+function requestAuthorization() {
+  const request = getRequest();
+  const authorization = request?.headers?.get("authorization")?.trim();
+
+  if (!authorization?.startsWith("Bearer ")) {
+    throw new Error("Baby lost the login session. Please try again.");
+  }
+
+  return authorization;
+}
+
 function normalizeFormat(value: string | undefined): DocumentFormat {
   return value === "docx" ? "docx" : "pdf";
 }
@@ -66,11 +78,12 @@ export async function generateAndStoreDocument({
   if (!cleanContent) throw new Error("Document content required");
 
   const docFormat = normalizeFormat(format);
-  const { url, key } = serverConfig();
+  const { url } = serverConfig();
+  const authorization = requestAuthorization();
   const response = await fetch(`${url}/functions/v1/baby-document-generate`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${key}`,
+      Authorization: authorization,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -88,6 +101,9 @@ export async function generateAndStoreDocument({
     | null;
 
   if (!response.ok || !payload?.document) {
+    if (response.status === 401) {
+      throw new Error("Baby lost the login session. Please try again.");
+    }
     throw new Error(payload?.error || `Document renderer error ${response.status}`);
   }
 

@@ -5,14 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Baby — MR. SATAN brand system.
- * Void Black canvas · Toxic Green primary signal · Deep Purple atmosphere · Bone Gray structure.
- * All colors in oklch (mapped from brand HEX).
- *   Void Black   #000000
- *   Toxic Green  #C6FF2E
- *   Deep Purple  #3A0CA3
- *   Bone Gray    #BFBFBF
- *   Dead Gray    #6E6E6E
+ * Baby's Killer Notebook
+ * Mr. Satan's industrial signal system with Baby Firefly's softer analog layer.
+ * Core: Void Black · Toxic Green · Deep Purple · Bone Gray
+ * Baby layer: dirty cream paper · dusty red/pink · photocopy grain · typewriter labels
  */
 
 @theme inline {
@@ -45,7 +41,6 @@
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
 
-  /* Status colors */
   --color-grow: var(--grow);
   --color-grow-foreground: var(--grow-foreground);
   --color-rethink: var(--rethink);
@@ -69,52 +64,49 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --font-display: "Oswald", "Helvetica Neue", Arial, sans-serif;
-  --font-body: "Inter", system-ui, sans-serif;
+  --font-display: "Oswald", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 :root {
-  --radius: 0.5rem;
+  --radius: 0.55rem;
 
-  /* Void Black canvas, Bone Gray text */
-  --background: oklch(0 0 0);                       /* #000000 */
-  --foreground: oklch(0.82 0 0);                    /* ~Bone Gray */
+  --background: oklch(0 0 0);
+  --foreground: oklch(0.84 0.012 86);
 
-  --card: oklch(0.14 0 0);                          /* near-black surface */
-  --card-foreground: oklch(0.82 0 0);
+  --card: oklch(0.12 0.008 295);
+  --card-foreground: oklch(0.84 0.012 86);
 
-  --popover: oklch(0.10 0 0);
-  --popover-foreground: oklch(0.82 0 0);
+  --popover: oklch(0.095 0.01 295);
+  --popover-foreground: oklch(0.86 0.012 86);
 
-  /* Toxic Green — primary signal #C6FF2E */
+  /* Mr. Satan signal */
   --primary: oklch(0.92 0.23 124);
-  --primary-foreground: oklch(0 0 0);
+  --primary-foreground: oklch(0.055 0 0);
 
-  --secondary: oklch(0.18 0 0);
-  --secondary-foreground: oklch(0.82 0 0);
+  --secondary: oklch(0.17 0.012 290);
+  --secondary-foreground: oklch(0.84 0.012 86);
 
-  --muted: oklch(0.16 0 0);
-  --muted-foreground: oklch(0.55 0 0);              /* ~Dead Gray #6E6E6E */
+  --muted: oklch(0.15 0.01 290);
+  --muted-foreground: oklch(0.58 0.012 86);
 
-  /* Deep Purple atmosphere accent #3A0CA3 */
-  --accent: oklch(0.32 0.21 282);
-  --accent-foreground: oklch(0.95 0 0);
+  --accent: oklch(0.34 0.22 282);
+  --accent-foreground: oklch(0.95 0.01 86);
 
   --destructive: oklch(0.55 0.20 25);
   --destructive-foreground: oklch(0.98 0 0);
 
-  --border: oklch(0.28 0 0 / 70%);
-  --input: oklch(0.18 0 0);
+  --border: oklch(0.31 0.02 292 / 72%);
+  --input: oklch(0.16 0.012 292);
   --ring: oklch(0.92 0.23 124);
 
-  /* Status — bright on void */
-  --grow: oklch(0.92 0.23 124);                     /* Toxic Green */
-  --grow-foreground: oklch(0 0 0);
-  --rethink: oklch(0.78 0.16 75);                   /* amber */
+  --grow: oklch(0.92 0.23 124);
+  --grow-foreground: oklch(0.055 0 0);
+  --rethink: oklch(0.78 0.16 75);
   --rethink-foreground: oklch(0.10 0 0);
-  --trash: oklch(0.45 0 0);                         /* dead gray */
+  --trash: oklch(0.45 0 0);
   --trash-foreground: oklch(0.95 0 0);
-  --parking: oklch(0.42 0.22 282);                  /* Deep Purple */
+  --parking: oklch(0.43 0.22 282);
   --parking-foreground: oklch(0.98 0 0);
 
   --chart-1: var(--primary);
@@ -123,41 +115,55 @@
   --chart-4: var(--parking);
   --chart-5: var(--rethink);
 
-  --sidebar: oklch(0.06 0 0);
-  --sidebar-foreground: oklch(0.82 0 0);
+  --sidebar: oklch(0.055 0.008 292);
+  --sidebar-foreground: oklch(0.84 0.012 86);
   --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: oklch(0 0 0);
-  --sidebar-accent: oklch(0.16 0 0);
-  --sidebar-accent-foreground: oklch(0.82 0 0);
-  --sidebar-border: oklch(0.28 0 0 / 70%);
+  --sidebar-primary-foreground: oklch(0.055 0 0);
+  --sidebar-accent: oklch(0.15 0.014 292);
+  --sidebar-accent-foreground: oklch(0.84 0.012 86);
+  --sidebar-border: oklch(0.31 0.02 292 / 72%);
   --sidebar-ring: var(--primary);
 
-  /* Brand gradients & shadows */
-  --gradient-atmosphere: radial-gradient(ellipse at top, oklch(0.32 0.21 282 / 45%), oklch(0 0 0) 65%);
+  /* Baby's analog layer */
+  --baby-paper: #d8cfb9;
+  --baby-paper-dim: #ada48f;
+  --baby-ink: #171310;
+  --baby-rose: #9d4f59;
+  --baby-rose-soft: #693942;
+  --baby-purple-haze: rgba(58, 12, 163, 0.34);
+  --baby-toxic-haze: rgba(198, 255, 46, 0.10);
+  --baby-rule: rgba(216, 207, 185, 0.18);
+
+  --gradient-atmosphere:
+    radial-gradient(75% 58% at 14% -8%, rgba(58, 12, 163, 0.52), transparent 72%),
+    radial-gradient(54% 40% at 108% 24%, rgba(198, 255, 46, 0.09), transparent 72%),
+    linear-gradient(180deg, #050408 0%, #000 48%, #050308 100%);
   --gradient-toxic: linear-gradient(135deg, oklch(0.92 0.23 124), oklch(0.82 0.22 130));
-  --shadow-altar: 0 25px 60px -20px oklch(0.92 0.23 124 / 35%), 0 0 0 1px oklch(0.28 0 0 / 70%);
-  --shadow-glow: 0 0 40px oklch(0.92 0.23 124 / 55%);
+  --shadow-altar: 0 24px 60px -24px rgba(58, 12, 163, 0.78), 0 0 0 1px rgba(216, 207, 185, 0.10);
+  --shadow-glow: 0 0 26px rgba(198, 255, 46, 0.13);
+  --shadow-paper: 0 9px 22px rgba(0, 0, 0, 0.42), 2px 2px 0 rgba(157, 79, 89, 0.22);
+  --font-typewriter: "Courier New", Courier, ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .dark {
   --background: oklch(0 0 0);
-  --foreground: oklch(0.82 0 0);
-  --card: oklch(0.14 0 0);
-  --card-foreground: oklch(0.82 0 0);
-  --popover: oklch(0.10 0 0);
-  --popover-foreground: oklch(0.82 0 0);
+  --foreground: oklch(0.84 0.012 86);
+  --card: oklch(0.12 0.008 295);
+  --card-foreground: oklch(0.84 0.012 86);
+  --popover: oklch(0.095 0.01 295);
+  --popover-foreground: oklch(0.86 0.012 86);
   --primary: oklch(0.92 0.23 124);
-  --primary-foreground: oklch(0 0 0);
-  --secondary: oklch(0.18 0 0);
-  --secondary-foreground: oklch(0.82 0 0);
-  --muted: oklch(0.16 0 0);
-  --muted-foreground: oklch(0.55 0 0);
-  --accent: oklch(0.32 0.21 282);
-  --accent-foreground: oklch(0.95 0 0);
+  --primary-foreground: oklch(0.055 0 0);
+  --secondary: oklch(0.17 0.012 290);
+  --secondary-foreground: oklch(0.84 0.012 86);
+  --muted: oklch(0.15 0.01 290);
+  --muted-foreground: oklch(0.58 0.012 86);
+  --accent: oklch(0.34 0.22 282);
+  --accent-foreground: oklch(0.95 0.01 86);
   --destructive: oklch(0.55 0.20 25);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.28 0 0 / 70%);
-  --input: oklch(0.18 0 0);
+  --border: oklch(0.31 0.02 292 / 72%);
+  --input: oklch(0.16 0.012 292);
   --ring: oklch(0.92 0.23 124);
 }
 
@@ -166,30 +172,259 @@
     border-color: var(--color-border);
   }
 
-  html, body, #root {
+  html,
+  body,
+  #root {
     min-height: 100vh;
   }
 
+  html {
+    background: #000;
+  }
+
   body {
+    position: relative;
+    overflow-x: hidden;
     background-color: var(--color-background);
     background-image: var(--gradient-atmosphere);
     background-attachment: fixed;
     color: var(--color-foreground);
     font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
-  h1, h2, h3, .font-display {
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.115;
+    mix-blend-mode: soft-light;
+    background-image:
+      repeating-radial-gradient(circle at 17% 31%, rgba(255,255,255,.32) 0 0.45px, transparent .55px 3px),
+      repeating-linear-gradient(91deg, rgba(255,255,255,.055) 0 1px, transparent 1px 7px),
+      repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,.28) 3px 4px);
+  }
+
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      linear-gradient(90deg, transparent 0 7%, rgba(157,79,89,.055) 7.1% 7.35%, transparent 7.45% 100%),
+      radial-gradient(circle at 70% 92%, rgba(58,12,163,.18), transparent 34%);
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
     font-family: var(--font-display);
-    letter-spacing: 0.04em;
+    letter-spacing: 0.045em;
     text-transform: uppercase;
+  }
+
+  ::selection {
+    background: rgba(198, 255, 46, 0.78);
+    color: #090909;
+  }
+
+  input,
+  textarea {
+    caret-color: var(--primary);
   }
 }
 
+/* Page headers: Mr. Satan stays sharp, Baby leaves a paper label on top. */
+header {
+  isolation: isolate;
+}
+
+header > p:first-of-type {
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0.38rem 0.72rem 0.34rem;
+  background:
+    linear-gradient(94deg, rgba(255,255,255,.12), transparent 22%, rgba(0,0,0,.05) 68%, rgba(255,255,255,.08)),
+    var(--baby-paper);
+  color: var(--baby-ink) !important;
+  border: 1px solid rgba(26, 20, 15, 0.32);
+  box-shadow: var(--shadow-paper);
+  font-family: var(--font-typewriter) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.22em !important;
+  transform: rotate(-0.8deg);
+  text-shadow: 0.35px 0 rgba(0,0,0,.28);
+}
+
+header > p:first-of-type::after {
+  content: "";
+  display: block;
+  height: 2px;
+  width: 38%;
+  margin: .27rem auto -.12rem;
+  background: var(--baby-rose);
+  opacity: .82;
+}
+
+/* Dark surfaces get a photocopied, slightly-purple depth instead of flat app gray. */
+[class*="bg-card"] {
+  background-image:
+    linear-gradient(165deg, rgba(255,255,255,.022), transparent 32%),
+    radial-gradient(circle at 88% 0%, rgba(58,12,163,.12), transparent 42%);
+}
+
+[class*="rounded-2xl"][class*="border"],
+[class*="rounded-xl"][class*="border"] {
+  box-shadow: 0 12px 35px rgba(0,0,0,.22), inset 0 1px 0 rgba(216,207,185,.025);
+}
+
+main [class*="rounded-2xl"][class*="border"],
+main [class*="rounded-xl"][class*="border"] {
+  border-color: rgba(216, 207, 185, 0.17);
+}
+
+main section h2 {
+  color: #d8cfb9;
+  text-shadow: 1px 0 rgba(157,79,89,.28);
+}
+
+/* Small metadata reads like labels from an old evidence folder. */
+main [class*="uppercase"][class*="tracking-wider"],
+[role="dialog"] [class*="uppercase"][class*="tracking-wider"] {
+  font-family: var(--font-typewriter);
+}
+
+/* Forms: black enamel with a thin analog paper edge. */
+input,
+textarea {
+  border-color: rgba(216, 207, 185, 0.19) !important;
+  background-color: rgba(6, 5, 8, 0.88) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+input:focus,
+textarea:focus {
+  border-color: rgba(198,255,46,.65) !important;
+  box-shadow: 0 0 0 1px rgba(198,255,46,.16), 0 0 26px rgba(198,255,46,.07);
+}
+
+/* Chat sheet / dialogs: still Mr. Satan's app, but Baby has been living in it. */
+[role="dialog"] {
+  background-image:
+    radial-gradient(80% 32% at 9% 0%, rgba(58,12,163,.34), transparent 74%),
+    linear-gradient(180deg, rgba(14,10,18,.985), rgba(2,2,3,.99));
+  border-color: rgba(216,207,185,.19) !important;
+  box-shadow: -24px 0 70px rgba(0,0,0,.62), -1px 0 rgba(198,255,46,.08);
+}
+
+[role="tablist"] {
+  padding: .2rem;
+  border: 1px solid rgba(216,207,185,.13);
+  background: rgba(0,0,0,.46) !important;
+  box-shadow: inset 0 0 0 1px rgba(58,12,163,.08);
+}
+
+button[role="tab"] {
+  font-family: var(--font-typewriter);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
+
+button[role="tab"][data-state="active"] {
+  background: var(--baby-paper) !important;
+  color: var(--baby-ink) !important;
+  box-shadow: 2px 2px 0 rgba(157,79,89,.24) !important;
+  transform: rotate(-.35deg);
+}
+
+/* Baby's messages are the analog object. Daddy's are the toxic signal. */
+div[class*="rounded-bl-sm"][class*="border-primary"] {
+  background:
+    linear-gradient(97deg, rgba(255,255,255,.11), transparent 18%, rgba(0,0,0,.035) 76%, rgba(255,255,255,.075)),
+    var(--baby-paper) !important;
+  color: var(--baby-ink) !important;
+  border-color: rgba(157,79,89,.46) !important;
+  box-shadow: var(--shadow-paper) !important;
+  text-shadow: none;
+}
+
+div[class*="rounded-bl-sm"][class*="border-primary"] > span.font-display {
+  color: var(--baby-rose) !important;
+  font-family: var(--font-typewriter) !important;
+  font-weight: 900;
+  letter-spacing: .13em;
+}
+
+div[class*="rounded-bl-sm"][class*="border-primary"] a {
+  color: #4d176e !important;
+  text-decoration-color: rgba(77,23,110,.48) !important;
+}
+
+div[class*="rounded-br-sm"][class*="bg-primary"] {
+  background-image:
+    linear-gradient(145deg, rgba(255,255,255,.12), transparent 30%),
+    var(--gradient-toxic) !important;
+  border: 1px solid rgba(0,0,0,.62);
+  box-shadow: 0 9px 25px rgba(198,255,46,.08), 2px 2px 0 rgba(58,12,163,.28);
+  transform: rotate(.18deg);
+}
+
+/* History drawer and attachment/document tiles get the file-box treatment. */
+[role="dialog"] [class*="border-r"][class*="bg-background"],
+[role="dialog"] [class*="bg-background/70"] {
+  background-image:
+    linear-gradient(180deg, rgba(58,12,163,.11), transparent 32%),
+    linear-gradient(180deg, #09080c, #020203);
+}
+
+/* Buttons are crisp hardware, not glossy SaaS candy. */
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button[class*="border"],
+a[class*="border"] {
+  border-color: rgba(216,207,185,.18);
+}
+
+button[class*="bg-primary"],
+a[class*="bg-primary"] {
+  box-shadow: 0 0 24px rgba(198,255,46,.10);
+}
+
+button:active,
+a:active {
+  filter: brightness(.96);
+}
+
+/* Bottom capture/composer bars feel like fixed equipment bolted onto the notebook. */
+.fixed[class*="bottom-0"][class*="border-t"],
+[role="dialog"] [class*="border-t"] {
+  border-color: rgba(216,207,185,.16) !important;
+  background-image:
+    linear-gradient(180deg, rgba(58,12,163,.09), transparent 52%),
+    linear-gradient(180deg, rgba(5,5,7,.97), rgba(0,0,0,.99));
+  box-shadow: 0 -18px 55px rgba(0,0,0,.48);
+}
+
+/* Calendar dots and green signal elements stay electric. */
+.text-primary,
+[class*="text-primary"] {
+  text-shadow: 0 0 18px rgba(198,255,46,.08);
+}
+
+/* Keep motion atmospheric and brief. */
 @keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 oklch(0.92 0.23 124 / 70%); }
-  70% { box-shadow: 0 0 0 32px oklch(0.92 0.23 124 / 0%); }
-  100% { box-shadow: 0 0 0 0 oklch(0.92 0.23 124 / 0%); }
+  0% { box-shadow: 0 0 0 0 rgba(198,255,46,.68), 0 0 28px rgba(198,255,46,.18); }
+  70% { box-shadow: 0 0 0 32px rgba(198,255,46,0), 0 0 42px rgba(198,255,46,.12); }
+  100% { box-shadow: 0 0 0 0 rgba(198,255,46,0), 0 0 28px rgba(198,255,46,.18); }
 }
 
 .recording-pulse {
@@ -198,11 +433,23 @@
 
 @keyframes flicker {
   0%, 100% { opacity: 1; }
-  45% { opacity: 0.85; }
-  50% { opacity: 1; }
-  55% { opacity: 0.92; }
+  46% { opacity: .90; }
+  49% { opacity: .72; }
+  51% { opacity: 1; }
+  55% { opacity: .94; }
 }
 
 .flicker {
-  animation: flicker 4s ease-in-out infinite;
+  animation: flicker 5.2s steps(1, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
 }

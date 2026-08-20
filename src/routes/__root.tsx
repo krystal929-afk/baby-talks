@@ -4,8 +4,7 @@ import { ReminderWatcher } from "@/components/reminder-watcher";
 import { AuthGate } from "@/components/auth-gate";
 
 import appCss from "../styles.css?url";
-import babyFireflyCss from "../baby-firefly-design.css?url";
-import babyFireflyHotfixCss from "../baby-firefly-hotfix.css?url";
+import babyRedesignCss from "../baby-redesign.css?url";
 
 function NotFoundComponent() {
   return (
@@ -36,7 +35,7 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" },
       { title: "Baby's Killer Notebook — Mr. Satan" },
       { name: "description", content: "A dark, voice-driven AI notebook. Whisper your ideas, let Baby file them where they belong." },
-      { name: "theme-color", content: "#000000" },
+      { name: "theme-color", content: "#050407" },
       { property: "og:title", content: "Baby's Killer Notebook — Mr. Satan" },
       { property: "og:description", content: "A dark, voice-driven AI notebook. Whisper your ideas, let Baby file them where they belong." },
       { property: "og:type", content: "website" },
@@ -46,8 +45,7 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "stylesheet", href: babyFireflyCss },
-      { rel: "stylesheet", href: babyFireflyHotfixCss },
+      { rel: "stylesheet", href: babyRedesignCss },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "apple-touch-icon", href: "/app-icon-192.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
@@ -55,7 +53,7 @@ export const Route = createRootRoute({
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=Special+Elite&display=swap",
       },
     ],
   }),

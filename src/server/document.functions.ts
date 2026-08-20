@@ -1,9 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  cleanDocumentFilename,
+  renderDocumentBytes,
+} from "./document-renderer";
 
 export const DOCUMENT_FORMATS = ["pdf", "docx"] as const;
 export type DocumentFormat = (typeof DOCUMENT_FORMATS)[number];
@@ -42,17 +45,6 @@ function serviceClient() {
   });
 }
 
-function requestAuthorization() {
-  const request = getRequest();
-  const authorization = request?.headers?.get("authorization")?.trim();
-
-  if (!authorization?.startsWith("Bearer ")) {
-    throw new Error("Baby lost the login session. Please try again.");
-  }
-
-  return authorization;
-}
-
 function normalizeFormat(value: string | undefined): DocumentFormat {
   return value === "docx" ? "docx" : "pdf";
 }
@@ -76,40 +68,68 @@ export async function generateAndStoreDocument({
   const cleanContent = content.trim();
   if (!cleanTitle) throw new Error("Document title required");
   if (!cleanContent) throw new Error("Document content required");
+  if (cleanContent.length > 20_000) throw new Error("Document content too long");
 
   const docFormat = normalizeFormat(format);
-  const { url } = serverConfig();
-  const authorization = requestAuthorization();
-  const response = await fetch(`${url}/functions/v1/baby-document-generate`, {
-    method: "POST",
-    headers: {
-      Authorization: authorization,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  const supabase = serviceClient();
+
+  const { data: conversation, error: conversationError } = await supabase
+    .from("baby_conversations")
+    .select("id")
+    .eq("id", conversationId)
+    .eq("owner_id", ownerId)
+    .single();
+
+  if (conversationError || !conversation) {
+    throw new Error("Conversation not found");
+  }
+
+  const documentFilename = cleanDocumentFilename(
+    filename?.trim() || cleanTitle,
+    docFormat,
+  );
+  const mimeType = docFormat === "pdf" ? "application/pdf" : DOCX_MIME;
+  const bytes = await renderDocumentBytes(cleanTitle, cleanContent, docFormat);
+  const storagePath = `${ownerId}/${conversationId}/${crypto.randomUUID()}.${docFormat}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(DOCUMENT_BUCKET)
+    .upload(storagePath, bytes, {
+      contentType: mimeType,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw new Error(`Couldn't save generated document: ${uploadError.message}`);
+  }
+
+  const { data: row, error: insertError } = await supabase
+    .from("baby_documents")
+    .insert({
       owner_id: ownerId,
       conversation_id: conversationId,
       title: cleanTitle,
-      content: cleanContent,
+      filename: documentFilename,
       format: docFormat,
-      filename: filename?.trim() || undefined,
-    }),
-  });
+      mime_type: mimeType,
+      storage_path: storagePath,
+      content: cleanContent,
+    })
+    .select("id,title,filename,format,mime_type")
+    .single();
 
-  const payload = (await response.json().catch(() => null)) as
-    | { error?: string; document?: GeneratedBabyDocument }
-    | null;
-
-  if (!response.ok || !payload?.document) {
-    if (response.status === 401) {
-      throw new Error("Baby lost the login session. Please try again.");
-    }
-    throw new Error(payload?.error || `Document renderer error ${response.status}`);
+  if (insertError || !row) {
+    await supabase.storage.from(DOCUMENT_BUCKET).remove([storagePath]);
+    throw new Error(insertError?.message || "Couldn't save document metadata");
   }
 
   return {
-    ...payload.document,
-    format: normalizeFormat(payload.document.format),
+    id: row.id,
+    title: row.title,
+    filename: row.filename,
+    format: normalizeFormat(row.format),
+    mime_type: row.mime_type,
+    path: `/documents/${row.id}`,
   };
 }
 

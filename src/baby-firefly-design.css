@@ -283,6 +283,25 @@ main [class*="uppercase"][class*="tracking-wider"],
   font-family: var(--bf-type) !important;
 }
 
+/* Temporary deployment marker. Remove after confirming Cloudflare is on this build. */
+body::after {
+  content: "FIREFLY // DESIGN 02" !important;
+  position: fixed !important;
+  left: .55rem !important;
+  bottom: calc(.5rem + env(safe-area-inset-bottom)) !important;
+  z-index: 2147483646 !important;
+  width: auto !important;
+  height: auto !important;
+  padding: .23rem .38rem !important;
+  border: 1px solid rgba(198,255,46,.7) !important;
+  background: rgba(0,0,0,.88) !important;
+  color: #c6ff2e !important;
+  font: 700 9px/1.1 var(--bf-type) !important;
+  letter-spacing: .1em !important;
+  box-shadow: 2px 2px 0 rgba(58,12,163,.55) !important;
+  pointer-events: none !important;
+}
+
 @media (max-width: 640px) {
   [role="dialog"] {
     border-left: 0 !important;

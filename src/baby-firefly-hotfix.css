@@ -1,0 +1,14 @@
+/* Deployment-marker hotfix.
+ * The temporary marker inherited `inset: 0` from the base body::after rule,
+ * which stretched its black background across the viewport on iOS Safari.
+ * Remove the overlay entirely now that the redesigned build is confirmed live.
+ */
+body::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Keep the photocopy grain subtle enough for readable mobile contrast. */
+body::before {
+  opacity: 0.08 !important;
+}

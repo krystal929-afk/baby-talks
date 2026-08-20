@@ -1,0 +1,294 @@
+/*
+ * BABY FIREFLY DESIGN SKIN
+ * Loaded after the base theme on purpose.
+ * Mr. Satan = black / toxic green / deep purple industrial signal.
+ * Baby = dirty paper / dusty rose / typewriter / grindhouse evidence-folder texture.
+ */
+
+:root {
+  --bf-paper: #ded4bc;
+  --bf-paper-dark: #b7aa8d;
+  --bf-ink: #17120e;
+  --bf-rose: #a04d5e;
+  --bf-rose-dark: #6d303d;
+  --bf-toxic: #c6ff2e;
+  --bf-purple: #3a0ca3;
+  --bf-bone: #bfbfbf;
+  --bf-void: #000;
+  --bf-type: "Courier New", Courier, ui-monospace, monospace;
+}
+
+/* Make the whole app unmistakably different. */
+body {
+  background:
+    radial-gradient(circle at 14% 0%, rgba(58, 12, 163, .52), transparent 28rem),
+    radial-gradient(circle at 96% 34%, rgba(198, 255, 46, .10), transparent 24rem),
+    linear-gradient(180deg, #08050b 0%, #000 42%, #09050d 100%) !important;
+}
+
+body::before {
+  opacity: .2 !important;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(255,255,255,.025) 3px 4px),
+    repeating-radial-gradient(circle at 20% 30%, rgba(255,255,255,.22) 0 .55px, transparent .65px 4px) !important;
+}
+
+/* Headers become evidence-folder labels instead of ordinary app headings. */
+header {
+  border-bottom: 1px solid rgba(222, 212, 188, .16);
+  background:
+    linear-gradient(180deg, rgba(58,12,163,.18), transparent 72%);
+}
+
+header > p:first-of-type,
+[role="dialog"] h2 {
+  font-family: var(--bf-type) !important;
+  text-transform: uppercase !important;
+  letter-spacing: .19em !important;
+}
+
+header > p:first-of-type {
+  background: var(--bf-paper) !important;
+  color: var(--bf-ink) !important;
+  border: 1px solid rgba(23,18,14,.55) !important;
+  padding: .42rem .78rem .38rem !important;
+  box-shadow: 5px 5px 0 rgba(160,77,94,.28), 0 10px 28px rgba(0,0,0,.45) !important;
+  transform: rotate(-1.1deg) !important;
+}
+
+header > p:first-of-type::before {
+  content: "FILE // ";
+  color: var(--bf-rose-dark);
+  font-weight: 900;
+}
+
+/* Major panels read like stacked case-file materials. */
+main [class*="rounded-2xl"][class*="border"],
+main [class*="rounded-xl"][class*="border"],
+[role="dialog"] [class*="rounded-xl"][class*="border"],
+[role="dialog"] [class*="rounded-lg"][class*="border"] {
+  border-color: rgba(222,212,188,.26) !important;
+  background-color: rgba(10,7,12,.92) !important;
+  box-shadow:
+    0 16px 40px rgba(0,0,0,.38),
+    3px 3px 0 rgba(58,12,163,.18),
+    inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+
+main section h2,
+main h3 {
+  font-family: var(--bf-type) !important;
+  color: var(--bf-paper) !important;
+  letter-spacing: .08em !important;
+  text-shadow: 2px 1px 0 rgba(160,77,94,.28) !important;
+}
+
+/* The chat itself: this should be the most obvious change. */
+[role="dialog"] {
+  background:
+    linear-gradient(90deg, rgba(160,77,94,.055) 0 2px, transparent 2px 100%),
+    radial-gradient(circle at 0 0, rgba(58,12,163,.42), transparent 42%),
+    #030204 !important;
+}
+
+[role="dialog"] > div:first-child,
+[role="dialog"] [class*="border-b"] {
+  border-color: rgba(222,212,188,.22) !important;
+}
+
+[role="dialog"] h2 {
+  width: fit-content;
+  background: var(--bf-paper);
+  color: var(--bf-ink) !important;
+  padding: .38rem .7rem .32rem;
+  border: 1px solid rgba(23,18,14,.55);
+  box-shadow: 4px 4px 0 rgba(160,77,94,.32);
+  transform: rotate(-.7deg);
+}
+
+[role="tablist"] {
+  gap: .35rem !important;
+  padding: .35rem !important;
+  border: 1px solid rgba(222,212,188,.18) !important;
+  background: rgba(0,0,0,.72) !important;
+  border-radius: .2rem !important;
+}
+
+button[role="tab"] {
+  border-radius: .12rem !important;
+  font-family: var(--bf-type) !important;
+  text-transform: uppercase !important;
+  letter-spacing: .07em !important;
+  color: #8f8b84 !important;
+}
+
+button[role="tab"][data-state="active"] {
+  background: var(--bf-paper) !important;
+  color: var(--bf-ink) !important;
+  box-shadow: 3px 3px 0 rgba(160,77,94,.28) !important;
+  transform: rotate(-.5deg) !important;
+}
+
+/* Baby reply = physical note pinned into the black interface. */
+div[class*="rounded-bl-sm"][class*="border-primary"] {
+  position: relative;
+  background:
+    linear-gradient(92deg, rgba(255,255,255,.13), transparent 24%, rgba(0,0,0,.04) 75%, rgba(255,255,255,.08)),
+    var(--bf-paper) !important;
+  color: var(--bf-ink) !important;
+  border: 1px solid rgba(109,48,61,.72) !important;
+  border-radius: .15rem !important;
+  box-shadow: 6px 6px 0 rgba(160,77,94,.20), 0 14px 32px rgba(0,0,0,.42) !important;
+  transform: rotate(-.45deg) !important;
+}
+
+div[class*="rounded-bl-sm"][class*="border-primary"]::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 24%;
+  width: 68px;
+  height: 15px;
+  background: rgba(198,190,165,.62);
+  border-left: 1px solid rgba(0,0,0,.08);
+  border-right: 1px solid rgba(0,0,0,.08);
+  transform: rotate(2deg);
+  pointer-events: none;
+}
+
+div[class*="rounded-bl-sm"][class*="border-primary"] > span.font-display {
+  color: var(--bf-rose-dark) !important;
+  font-family: var(--bf-type) !important;
+  font-weight: 900 !important;
+  letter-spacing: .15em !important;
+}
+
+/* Daddy/user message = toxic signal strip, hard edged. */
+div[class*="rounded-br-sm"][class*="bg-primary"] {
+  border-radius: .18rem !important;
+  border: 1px solid #070707 !important;
+  background: linear-gradient(135deg, #c6ff2e, #9ee71a) !important;
+  color: #050505 !important;
+  box-shadow: 4px 4px 0 rgba(58,12,163,.42), 0 10px 28px rgba(198,255,46,.09) !important;
+  transform: rotate(.25deg) !important;
+}
+
+/* Generated media gets a contact-sheet frame. */
+[role="dialog"] a:has(img) {
+  border-radius: .1rem !important;
+  border: 1px solid rgba(222,212,188,.34) !important;
+  background: #050505 !important;
+  padding: 4px !important;
+  box-shadow: 5px 5px 0 rgba(58,12,163,.24) !important;
+}
+
+[role="dialog"] a:has(img) > div {
+  font-family: var(--bf-type) !important;
+  color: var(--bf-paper-dark) !important;
+  letter-spacing: .12em !important;
+}
+
+/* Composer = industrial console with paper-edge input. */
+[role="dialog"] form {
+  gap: .55rem !important;
+  padding: .72rem !important;
+  background:
+    linear-gradient(180deg, rgba(58,12,163,.12), transparent 48%),
+    #020203 !important;
+}
+
+[role="dialog"] textarea,
+[role="dialog"] input {
+  border-radius: .12rem !important;
+  border: 1px solid rgba(222,212,188,.28) !important;
+  background: #08070a !important;
+  color: #e0d9ca !important;
+  font-family: var(--bf-type) !important;
+  box-shadow: inset 4px 0 0 rgba(160,77,94,.20) !important;
+}
+
+[role="dialog"] textarea::placeholder,
+[role="dialog"] input::placeholder {
+  color: #777169 !important;
+}
+
+[role="dialog"] form button {
+  border-radius: .12rem !important;
+}
+
+[role="dialog"] form button[type="submit"] {
+  background: var(--bf-toxic) !important;
+  color: #050505 !important;
+  border: 1px solid #0b0b0b !important;
+  box-shadow: 3px 3px 0 var(--bf-purple) !important;
+}
+
+/* Conversation history becomes an actual black file drawer. */
+[role="dialog"] [class*="w-[86%]"] {
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 28px),
+    #050407 !important;
+}
+
+[role="dialog"] [class*="w-[86%]"] > div:first-child::after {
+  content: "CASE FILES";
+  margin-left: .3rem;
+  color: var(--bf-rose);
+  font-family: var(--bf-type);
+  font-size: .63rem;
+  letter-spacing: .15em;
+}
+
+/* Generic buttons and pills: less SaaS, more hardware/labels. */
+button[class*="rounded-full"],
+a[class*="rounded-full"] {
+  border-radius: .15rem !important;
+}
+
+button[class*="bg-primary"],
+a[class*="bg-primary"] {
+  background: var(--bf-toxic) !important;
+  color: #050505 !important;
+  border-color: #0a0a0a !important;
+  box-shadow: 3px 3px 0 rgba(58,12,163,.34) !important;
+}
+
+/* Calendar / Brain / notebook cards pick up a paper file-tab stripe. */
+main [class*="bg-card"][class*="border"] {
+  position: relative;
+}
+
+main [class*="bg-card"][class*="border"]::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--bf-rose), var(--bf-purple));
+  opacity: .65;
+  pointer-events: none;
+}
+
+/* Bottom fixed capture bar becomes a bolted black console. */
+.fixed[class*="bottom-0"][class*="border-t"] {
+  border-top: 1px solid rgba(222,212,188,.22) !important;
+  background:
+    linear-gradient(180deg, rgba(58,12,163,.14), transparent 46%),
+    #020203 !important;
+  box-shadow: 0 -18px 50px rgba(0,0,0,.68) !important;
+}
+
+/* Tiny paper-tag treatment for metadata. */
+main [class*="uppercase"][class*="tracking-wider"],
+[role="dialog"] [class*="uppercase"][class*="tracking-wider"] {
+  font-family: var(--bf-type) !important;
+}
+
+@media (max-width: 640px) {
+  [role="dialog"] {
+    border-left: 0 !important;
+  }
+
+  div[class*="rounded-bl-sm"][class*="border-primary"] {
+    max-width: 94% !important;
+  }
+}

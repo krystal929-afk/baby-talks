@@ -1,0 +1,28 @@
+/* Final structural details for the approved Baby Firefly redesign */
+
+.bf-event-card::before{display:none!important}
+.bf-event-layout{display:grid;grid-template-columns:58px minmax(0,1fr) 24px;gap:11px;align-items:stretch}
+.bf-event-date{position:relative;display:flex;min-height:112px;flex-direction:column;align-items:center;justify-content:center;border-right:1px solid rgba(157,62,231,.55);padding:4px 9px 4px 2px;text-align:center}
+.bf-event-weekday{position:absolute;left:-17px;top:30px;width:58px;transform:rotate(-90deg);background:#d7c29a;color:#1a1612;padding:3px 2px;font:700 8px/1 "Special Elite",monospace;letter-spacing:.08em;box-shadow:2px 2px 0 rgba(111,32,182,.25)}
+.bf-event-month{color:#9d3ee7;font:700 11px/1 "Special Elite",monospace;letter-spacing:.08em}
+.bf-event-date strong{margin-top:3px;color:#baff21;font:700 34px/.95 "Special Elite",monospace;text-shadow:0 0 12px rgba(186,255,33,.2)}
+.bf-event-skull{margin-top:8px;color:#6f20b6;font-size:16px;line-height:1}
+
+.bf-chat-shell [role="tablist"]{height:auto;padding:3px}
+.bf-chat-shell [role="tab"]{border-radius:1px!important;color:#7f7770;font:600 9px/1 "Oswald",sans-serif;letter-spacing:.08em;text-transform:uppercase}
+.bf-chat-shell [role="tab"][data-state="active"]{background:#d7c29a!important;color:#1a1612!important;box-shadow:2px 2px 0 rgba(111,32,182,.3)!important}
+.bf-chat-shell>button[data-radix-collection-item],.bf-chat-shell>button.absolute{color:#948c83!important}
+
+.bf-skills input,.bf-skills textarea,.bf-chat-shell input,.bf-chat-shell textarea{border-color:rgba(215,194,154,.25)!important;background:#08060a!important;color:#e0d6c3!important;font-family:"Special Elite",monospace!important}
+.bf-skills button,.bf-chat-shell button{font-family:"Special Elite",monospace}
+
+.bf-calendar [data-slot="calendar"]{width:100%!important}
+.bf-calendar [data-slot="calendar"]>div,.bf-calendar [data-slot="calendar"] [class*="month"]{width:100%}
+.bf-calendar [data-slot="calendar"] table{width:100%!important}
+.bf-calendar [data-slot="calendar"] .rdp-month_caption{position:relative;z-index:2}
+.bf-calendar [data-slot="calendar"] .rdp-button_previous,.bf-calendar [data-slot="calendar"] .rdp-button_next{color:#baff21!important}
+
+@media(max-width:380px){
+  .bf-event-layout{grid-template-columns:52px minmax(0,1fr) 20px;gap:8px}
+  .bf-event-date strong{font-size:30px}
+}

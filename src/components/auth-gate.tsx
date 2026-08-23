@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import logoSmoke from "@/assets/brand/logo-smoke.jpg";
+import logoSmoke from "@/assets/brand/logo-smoke-web.jpg";
 import babyPhoto from "@/assets/brand/baby-firefly.jpg";
 import mascot from "@/assets/brand/mr-satan-mascot.png";
 

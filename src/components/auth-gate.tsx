@@ -7,9 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import logoSmoke from "@/assets/brand/logo-smoke-web.jpg";
+import logoPrimary from "@/assets/brand/logo-green.png";
 import babyPhoto from "@/assets/brand/baby-firefly.jpg";
-import mascot from "@/assets/brand/mr-satan-mascot.png";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -57,7 +56,7 @@ function LoginScreen() {
   return (
     <div className="bf-screen bf-login">
       <div className="bf-login-inner">
-        <img src={logoSmoke} alt="MR. SATAN" className="bf-login-logo" draggable={false} />
+        <img src={logoPrimary} alt="MR. SATAN" className="bf-login-logo" draggable={false} />
         <div className="bf-login-sub">BABY&apos;S KILLER NOTEBOOK</div>
 
         <div className="bf-login-collage">
@@ -66,12 +65,6 @@ function LoginScreen() {
           </div>
 
           <div className="bf-paper-card bf-login-note">
-            <img
-              src={mascot}
-              alt="Mr. Satan"
-              className="absolute -right-2 -bottom-2 h-16 w-16 object-contain opacity-75"
-              draggable={false}
-            />
             <h1>WELCOME, DADDY.</h1>
             <p>
               I&apos;m here to keep your world in order. Ideas, plans, memories, gigs,

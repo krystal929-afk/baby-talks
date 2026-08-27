@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { Brain, CalendarDays, MessageCircle, NotebookTabs, Wrench } from "lucide-react";
-import mascot from "@/assets/brand/mr-satan-mascot.png";
 
 export type BabyNavKey = "notebook" | "calendar" | "chat" | "brain" | "skills";
 
@@ -53,7 +52,6 @@ export function BabyAppNav({ active, onChat, onSkills }: Props) {
         </Link>
         {skills}
       </div>
-      <img src={mascot} alt="" aria-hidden className="pointer-events-none absolute bottom-2 left-1/2 hidden h-8 w-8 -translate-x-1/2 opacity-0" />
     </nav>
   );
 }

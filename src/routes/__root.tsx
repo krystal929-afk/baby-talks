@@ -5,7 +5,6 @@ import { AuthGate } from "@/components/auth-gate";
 
 import appCss from "../styles.css?url";
 import babyRedesignCss from "../baby-redesign.css?url";
-import babyRedesignFinishCss from "../baby-redesign-finish.css?url";
 
 function NotFoundComponent() {
   return (
@@ -40,7 +39,6 @@ export const Route = createRootRoute({
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: babyRedesignCss },
-      { rel: "stylesheet", href: babyRedesignFinishCss },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "apple-touch-icon", href: "/app-icon-192.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },

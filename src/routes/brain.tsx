@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { BabyAppNav } from "@/components/baby-app-nav";
 import babyPhoto from "@/assets/brand/baby-firefly.jpg";
-import mascot from "@/assets/brand/mr-satan-mascot.png";
 
 const qc = new QueryClient();
 
@@ -36,7 +35,6 @@ function BrainPage() {
         <header className="relative mb-5">
           <div className="bf-paper-title">THE BRAIN</div>
           <p className="mt-3 text-center text-xs text-[#8f8880]">Nothing gets forgotten.</p>
-          <img src={mascot} alt="" aria-hidden className="absolute right-0 top-0 h-14 w-14 object-contain opacity-35" />
         </header>
 
         <div className="bf-section-label">Pinned</div>

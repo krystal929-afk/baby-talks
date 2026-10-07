@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import webpush from "web-push";
+// The cron job has no user session, so this route is the ONLY place that uses the
+// service-role client. It still only pushes each event to its owner's devices.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { VAPID_PUBLIC_KEY, VAPID_SUBJECT } from "@/lib/push-config";
+import { configurePush, sendPush } from "@/server/push-send";
+import { formatEventTime } from "@/lib/timezone";
 
 const BABY_LINES = [
   "Hey daddy — clock's ticking on:",
@@ -11,99 +13,65 @@ const BABY_LINES = [
   "Baby's reminding ya:",
 ];
 
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const x = enc.encode(a);
+  const y = enc.encode(b);
+  let diff = x.length ^ y.length;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0;
+}
+
 async function run(request: Request) {
-  // Auth: require shared secret header so randos can't trigger pushes / mark events reminded
+  // Shared secret header so randos can't trigger pushes / mark events reminded.
   const expected = process.env.CRON_SECRET;
-  const provided = request.headers.get("x-cron-secret");
-  if (!expected || provided !== expected) {
-    return new Response(JSON.stringify({ error: "unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+  const provided = request.headers.get("x-cron-secret") ?? "";
+  if (!expected || !timingSafeEqual(provided, expected)) return json({ error: "unauthorized" }, 401);
 
-  const priv = process.env.VAPID_PRIVATE_KEY;
-  if (!priv) {
-    return new Response(JSON.stringify({ error: "VAPID_PRIVATE_KEY not configured" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, priv);
+  if (!configurePush()) return json({ error: "VAPID_PRIVATE_KEY not configured" }, 500);
 
-  const nowIso = new Date().toISOString();
   const { data: events, error } = await supabaseAdmin
     .from("calendar_events")
     .select("*")
     .eq("reminded", false)
     .not("remind_at", "is", null)
-    .lte("remind_at", nowIso)
+    .lte("remind_at", new Date().toISOString())
     .limit(50);
 
-  if (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-  if (!events || events.length === 0) {
-    return new Response(JSON.stringify({ ok: true, processed: 0 }), {
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+  if (error) return json({ error: error.message }, 500);
+  if (!events || events.length === 0) return json({ ok: true, processed: 0 });
 
-  const { data: subs } = await supabaseAdmin.from("push_subscriptions").select("*");
+  const { data: subs, error: subsError } = await supabaseAdmin.from("push_subscriptions").select("*");
+  if (subsError) return json({ error: subsError.message }, 500);
+
   let pushed = 0;
-
   for (const ev of events) {
-    if (subs && subs.length > 0) {
-      const line = BABY_LINES[Math.floor(Math.random() * BABY_LINES.length)];
-      const startsTxt = new Date(ev.starts_at).toLocaleString(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      });
+    const owned = (subs ?? []).filter((s) => ev.user_id && s.user_id === ev.user_id);
+    const line = BABY_LINES[Math.floor(Math.random() * BABY_LINES.length)];
+    for (const s of owned) {
       const payload = JSON.stringify({
         title: ev.title,
-        body: `${line} ${startsTxt}${ev.location ? " @ " + ev.location : ""}`,
+        body: `${line} ${formatEventTime(ev.starts_at, s.time_zone ?? undefined)}${ev.location ? " @ " + ev.location : ""}`,
         url: "/calendar",
         tag: `event-${ev.id}`,
       });
-
-      for (const s of subs) {
-        try {
-          await webpush.sendNotification(
-            { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-            payload
-          );
-          pushed++;
-        } catch (e: any) {
-          if (e?.statusCode === 404 || e?.statusCode === 410) {
-            await supabaseAdmin.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
-          } else {
-            console.error("push send failed", e?.statusCode, e?.body);
-          }
-        }
-      }
+      if (await sendPush(supabaseAdmin, s, payload)) pushed++;
     }
 
-    await supabaseAdmin
-      .from("calendar_events")
-      .update({ reminded: true })
-      .eq("id", ev.id);
+    const { error: updError } = await supabaseAdmin.from("calendar_events").update({ reminded: true }).eq("id", ev.id);
+    if (updError) console.error("mark reminded failed", ev.id, updError.message);
   }
 
-  return new Response(JSON.stringify({ ok: true, processed: events.length, pushed }), {
-    headers: { "Content-Type": "application/json" },
-  });
+  return json({ ok: true, processed: events.length, pushed });
 }
 
 export const Route = createFileRoute("/api/public/hooks/send-due-reminders")({
   server: {
     handlers: {
-      GET: async ({ request }) => run(request),
       POST: async ({ request }) => run(request),
     },
   },

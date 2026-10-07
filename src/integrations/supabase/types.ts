@@ -129,6 +129,7 @@ export type Database = {
           last_used_at: string | null
           p256dh: string
           user_id: string | null
+          time_zone: string | null
         }
         Insert: {
           auth: string
@@ -139,6 +140,7 @@ export type Database = {
           last_used_at?: string | null
           p256dh: string
           user_id?: string | null
+          time_zone?: string | null
         }
         Update: {
           auth?: string
@@ -149,6 +151,7 @@ export type Database = {
           last_used_at?: string | null
           p256dh?: string
           user_id?: string | null
+          time_zone?: string | null
         }
         Relationships: []
       }

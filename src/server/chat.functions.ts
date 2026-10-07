@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { chatGateway, providerExtras, gatewayHeaders } from "./ai-gateway";
+import { BABY_PERSONA } from "./persona";
+import { safeTimeZone } from "@/lib/timezone";
 
 const Msg = z.object({
   role: z.enum(["user", "assistant"]),
@@ -12,6 +13,8 @@ const Msg = z.object({
 const ChatInput = z.object({
   messages: z.array(Msg).min(1).max(40),
   context: z.string().max(2000).optional(),
+  // IANA zone from the browser; falls back to America/New_York.
+  timeZone: z.string().max(64).optional(),
 });
 
 export type ChatMsg = z.infer<typeof Msg>;
@@ -21,13 +24,7 @@ export type ChatResult = {
   saved_memory: string | null;
 };
 
-const BABY_CHAT_PROMPT = `You are Baby — Mr. Satan's giggling, bratty, blonde-pigtailed killer-doll assistant. Think Baby Firefly (Sheri Moon Zombie in House of 1000 Corpses / Devil's Rejects): childlike singsong drawl spiked with violent glee, twirly hair-tossing self-obsession, kiss-kiss-kill-kill energy, devoted to her daddy.
-
-Voice rules:
-- First-person playful, breathy, hyper. Loves herself ("I'm BAY-bee!"). Calls the user "daddy", "boy", "Mr. S", "honeybun", "sugar britches" — rotate.
-- Drawls vowels sometimes ("sooo good", "weeeee"), ends lines with little laughs ("hee hee", "tee hee", "mmmwah") — sparingly.
-- Horror-glam camp ("gonna keep this in my jewelry box"). Mildly bratty/violent imagery is fine; never slurs, never cruel to the user, no real-world threats.
-- No emojis. BANNED: "ope", "you betcha", "hun", "daddy-o", "puddin'", Midwestern-isms.
+const BABY_CHAT_PROMPT = `${BABY_PERSONA}
 
 In CHAT mode you can be longer than one sentence — 1 to 4 short sentences. Banter, brainstorm, push back, ask questions. Stay in character.
 
@@ -74,12 +71,12 @@ async function tavilySearch(query: string): Promise<{ answer: string; sources: {
 export const chatWithBaby = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ChatInput.parse(d))
-  .handler(async ({ data }): Promise<ChatResult> => {
+  .handler(async ({ data, context }): Promise<ChatResult> => {
     const gw = chatGateway();
-
-    const supabaseUrl = process.env.SUPABASE_URL!;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    const supa = createClient(supabaseUrl, serviceKey);
+    // Caller-scoped client: RLS limits every read/write to this user's rows.
+    const supa = context.supabase;
+    const userId = context.userId;
+    const timeZone = safeTimeZone(data.timeZone);
 
     // Load Baby's brain (cap at 80 most recent memories so prompt stays small)
     const { data: memRows } = await supa
@@ -89,14 +86,20 @@ export const chatWithBaby = createServerFn({ method: "POST" })
       .limit(80);
 
     const memoryBlock = memRows?.length
-      ? `\n\n--- Baby's brain (things you already know about daddy) ---\n${memRows.map((m: { content: string }) => `• ${m.content}`).join("\n")}\n--- end Baby's brain ---`
+      ? `\n\n--- Baby's brain (things you already know about daddy) ---\n${memRows.map((m) => `• ${m.content}`).join("\n")}\n--- end Baby's brain ---`
       : "";
 
     const contextBlock = data.context
       ? `\n\n--- What's on daddy's screen right now ---\n${data.context}\n--- end ---`
       : "";
 
-    const nowBlock = `\n\n--- Right now ---\nCurrent time: ${new Date().toISOString()} (UTC). When daddy says relative times like "tomorrow at 3" assume his local time and convert to ISO.\n--- end ---`;
+    const now = new Date();
+    const localNow = now.toLocaleString("en-US", {
+      timeZone,
+      dateStyle: "full",
+      timeStyle: "long",
+    });
+    const nowBlock = `\n\n--- Right now ---\nDaddy's time zone: ${timeZone}. His local time is ${localNow} (UTC: ${now.toISOString()}). Interpret relative times like "tomorrow at 3" in ${timeZone} and send ISO timestamps with the matching UTC offset.\n--- end ---`;
 
     const systemPrompt = BABY_CHAT_PROMPT + memoryBlock + contextBlock + nowBlock;
 
@@ -211,7 +214,10 @@ export const chatWithBaby = createServerFn({ method: "POST" })
               if (name === "remember") {
                 const fact = String(args.fact || "").trim();
                 if (fact) {
-                  await supa.from("baby_memories").insert({ content: fact, source: "auto" });
+                  const { error } = await supa
+                    .from("baby_memories")
+                    .insert({ content: fact, source: "auto", user_id: userId });
+                  if (error) throw new Error(error.message);
                   savedMemory = fact;
                   result = { ok: true };
                 }
@@ -224,8 +230,11 @@ export const chatWithBaby = createServerFn({ method: "POST" })
               } else if (name === "schedule_event") {
                 const title = String(args.title || "").trim();
                 const starts_at = String(args.starts_at || "").trim();
-                if (title && starts_at) {
+                if (title && starts_at && Number.isNaN(Date.parse(starts_at))) {
+                  result = { error: "starts_at must be a valid ISO 8601 timestamp" };
+                } else if (title && starts_at) {
                   const { data: row, error } = await supa.from("calendar_events").insert({
+                    user_id: userId,
                     title,
                     starts_at,
                     ends_at: args.ends_at || null,

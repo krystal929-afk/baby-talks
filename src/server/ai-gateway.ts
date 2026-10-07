@@ -33,13 +33,18 @@ export type GatewayConfig = {
   provider: "openrouter" | "gemini" | "custom";
 };
 
+function detectProvider(url: string): GatewayConfig["provider"] {
+  if (url.includes("openrouter.ai")) return "openrouter";
+  if (url.includes("googleapis.com")) return "gemini";
+  return "custom";
+}
+
 export function chatGateway(): GatewayConfig {
   const url = process.env.CHAT_AI_URL || OPENROUTER_URL;
   const model = process.env.CHAT_AI_MODEL || DEFAULT_CHAT_MODEL;
   const apiKey = process.env.CHAT_AI_KEY || process.env.OPENROUTER_API_KEY || "";
   if (!apiKey) throw new Error("OPENROUTER_API_KEY (or CHAT_AI_KEY) missing");
-  const provider = url.includes("openrouter.ai") ? "openrouter" : url.includes("googleapis.com") ? "gemini" : "custom";
-  return { url, model, apiKey, provider };
+  return { url, model, apiKey, provider: detectProvider(url) };
 }
 
 export function utilGateway(): GatewayConfig {
@@ -47,8 +52,7 @@ export function utilGateway(): GatewayConfig {
   const model = process.env.UTIL_AI_MODEL || DEFAULT_UTIL_MODEL;
   const apiKey = process.env.UTIL_AI_KEY || process.env.GEMINI_API_KEY || "";
   if (!apiKey) throw new Error("GEMINI_API_KEY (or UTIL_AI_KEY) missing");
-  const provider = url.includes("openrouter.ai") ? "openrouter" : url.includes("googleapis.com") ? "gemini" : "custom";
-  return { url, model, apiKey, provider };
+  return { url, model, apiKey, provider: detectProvider(url) };
 }
 
 // Extra request-body fields per provider.

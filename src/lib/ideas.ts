@@ -7,7 +7,10 @@ export type Topic = (typeof TOPICS)[number];
 
 export const STATUS_ORDER: Status[] = ["grow", "rethink", "parking_lot", "trash"];
 
-export const STATUS_META: Record<Status, { label: string; cls: string; chipCls: string; tagline: string }> = {
+export const STATUS_META: Record<
+  Status,
+  { label: string; cls: string; chipCls: string; tagline: string }
+> = {
   grow: {
     label: "Grow",
     cls: "border-grow/50 bg-grow/10",

@@ -17,7 +17,10 @@ export const Route = createFileRoute("/calendar")({
   head: () => ({
     meta: [
       { title: "Baby's Calendar — Mr. Satan" },
-      { name: "description", content: "Daddy's gigs, appointments, and reminders Baby tucked away." },
+      {
+        name: "description",
+        content: "Daddy's gigs, appointments, and reminders Baby tucked away.",
+      },
     ],
   }),
   component: CalendarPage,
@@ -35,7 +38,11 @@ type Event = {
 };
 
 function sameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
 
 function CalendarPage() {
@@ -77,7 +84,12 @@ function CalendarPage() {
         >
           <ArrowLeft className="h-3 w-3" /> Back
         </Link>
-        <img src={logoPrimary} alt="MR. SATAN" className="mx-auto h-20 w-auto select-none" draggable={false} />
+        <img
+          src={logoPrimary}
+          alt="MR. SATAN"
+          className="mx-auto h-20 w-auto select-none"
+          draggable={false}
+        />
         <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.4em] text-primary flicker">
           Baby&apos;s Calendar
         </p>
@@ -105,7 +117,8 @@ function CalendarPage() {
               hasEvent: events.map((e) => new Date(e.starts_at)),
             }}
             modifiersClassNames={{
-              hasEvent: "relative after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-primary",
+              hasEvent:
+                "relative after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-primary",
             }}
             className="mx-auto"
           />
@@ -113,7 +126,11 @@ function CalendarPage() {
 
         {selectedDate && (
           <Section
-            title={selectedDate.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+            title={selectedDate.toLocaleDateString(undefined, {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+            })}
             tagline="On this day"
           >
             {(() => {
@@ -166,7 +183,15 @@ function CalendarPage() {
   );
 }
 
-function Section({ title, tagline, children }: { title: string; tagline: string; children: React.ReactNode }) {
+function Section({
+  title,
+  tagline,
+  children,
+}: {
+  title: string;
+  tagline: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="mb-6">
       <div className="mb-2 flex items-baseline gap-2 px-1">
@@ -180,7 +205,8 @@ function Section({ title, tagline, children }: { title: string; tagline: string;
 
 function fmt(iso: string, allDay: boolean) {
   const d = new Date(iso);
-  if (allDay) return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  if (allDay)
+    return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   return d.toLocaleString(undefined, {
     weekday: "short",
     month: "short",
@@ -190,7 +216,15 @@ function fmt(iso: string, allDay: boolean) {
   });
 }
 
-function EventCard({ event, onChanged, faded }: { event: Event; onChanged: () => void; faded?: boolean }) {
+function EventCard({
+  event,
+  onChanged,
+  faded,
+}: {
+  event: Event;
+  onChanged: () => void;
+  faded?: boolean;
+}) {
   const del = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("calendar_events").delete().eq("id", event.id);
@@ -244,7 +278,15 @@ function toLocalInput(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function AddEventDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {
+function AddEventDialog({
+  open,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const [title, setTitle] = useState("");
   const [startsAt, setStartsAt] = useState(() => toLocalInput(new Date(Date.now() + 3600_000)));
   const [location, setLocation] = useState("");
@@ -286,7 +328,10 @@ function AddEventDialog({ open, onClose, onSaved }: { open: boolean; onClose: ()
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+      onClick={onClose}
+    >
       <div
         className="w-full max-w-md rounded-t-2xl border border-border/60 bg-card p-5 sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
@@ -294,24 +339,51 @@ function AddEventDialog({ open, onClose, onSaved }: { open: boolean; onClose: ()
         <h2 className="mb-4 font-display text-xl text-foreground">New event</h2>
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs uppercase tracking-wider text-muted-foreground">Title</label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Studio session" />
+            <label className="mb-1 block text-xs uppercase tracking-wider text-muted-foreground">
+              Title
+            </label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Studio session"
+            />
           </div>
           <div>
-            <label className="mb-1 block text-xs uppercase tracking-wider text-muted-foreground">When</label>
-            <Input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
+            <label className="mb-1 block text-xs uppercase tracking-wider text-muted-foreground">
+              When
+            </label>
+            <Input
+              type="datetime-local"
+              value={startsAt}
+              onChange={(e) => setStartsAt(e.target.value)}
+            />
           </div>
           <div>
-            <label className="mb-1 block text-xs uppercase tracking-wider text-muted-foreground">Location</label>
-            <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Optional" />
+            <label className="mb-1 block text-xs uppercase tracking-wider text-muted-foreground">
+              Location
+            </label>
+            <Input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="Optional"
+            />
           </div>
           <div>
-            <label className="mb-1 block text-xs uppercase tracking-wider text-muted-foreground">Notes</label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Optional" />
+            <label className="mb-1 block text-xs uppercase tracking-wider text-muted-foreground">
+              Notes
+            </label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Optional"
+            />
           </div>
         </div>
         <div className="mt-5 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
           <Button onClick={save} disabled={!title.trim() || saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
           </Button>

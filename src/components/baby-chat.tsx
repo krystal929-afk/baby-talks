@@ -67,7 +67,9 @@ function ChatPane({ context }: { context?: string }) {
     mutationFn: async (text: string) => {
       const next: ChatMsg[] = [...messages, { role: "user", content: text }];
       setMessages(next);
-      const res = await chatWithBaby({ data: { messages: next.slice(-40), context, timeZone: getBrowserTimeZone() } });
+      const res = await chatWithBaby({
+        data: { messages: next.slice(-40), context, timeZone: getBrowserTimeZone() },
+      });
       setMessages([...next, { role: "assistant", content: res.reply }]);
       if (res.saved_memory) {
         toast.success("Baby tucked it in her brain", { description: res.saved_memory });
@@ -196,7 +198,12 @@ function BrainPane() {
           </p>
         )}
         {memories.map((m) => (
-          <MemoryRow key={m.id} memory={m} onDelete={() => del.mutate(m.id)} onUpdate={(content) => update.mutate({ id: m.id, content })} />
+          <MemoryRow
+            key={m.id}
+            memory={m}
+            onDelete={() => del.mutate(m.id)}
+            onUpdate={(content) => update.mutate({ id: m.id, content })}
+          />
         ))}
       </div>
     </div>

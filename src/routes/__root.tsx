@@ -13,9 +13,7 @@ function NotFoundComponent() {
       <div className="max-w-md text-center">
         <h1 className="font-display text-7xl text-primary">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          That page has been cast into the void.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">That page has been cast into the void.</p>
         <div className="mt-6">
           <Link
             to="/"
@@ -35,14 +33,26 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Baby's Killer Notepad — Mr. Satan" },
-      { name: "description", content: "A dark, voice-driven AI notebook. Whisper your ideas, let Baby file them where they belong." },
+      {
+        name: "description",
+        content:
+          "A dark, voice-driven AI notebook. Whisper your ideas, let Baby file them where they belong.",
+      },
       { name: "theme-color", content: "#000000" },
       { property: "og:title", content: "Baby's Killer Notepad — Mr. Satan" },
-      { property: "og:description", content: "A dark, voice-driven AI notebook. Whisper your ideas, let Baby file them where they belong." },
+      {
+        property: "og:description",
+        content:
+          "A dark, voice-driven AI notebook. Whisper your ideas, let Baby file them where they belong.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Baby's Killer Notepad — Mr. Satan" },
-      { name: "twitter:description", content: "A dark, voice-driven AI notebook. Whisper your ideas, let Baby file them where they belong." },
+      {
+        name: "twitter:description",
+        content:
+          "A dark, voice-driven AI notebook. Whisper your ideas, let Baby file them where they belong.",
+      },
       { property: "og:image", content: "/app-icon-512.png" },
       { name: "twitter:image", content: "/app-icon-512.png" },
     ],

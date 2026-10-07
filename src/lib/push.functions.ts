@@ -35,7 +35,10 @@ export const unsubscribePush = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ endpoint: z.string().url() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("push_subscriptions").delete().eq("endpoint", data.endpoint);
+    const { error } = await context.supabase
+      .from("push_subscriptions")
+      .delete()
+      .eq("endpoint", data.endpoint);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

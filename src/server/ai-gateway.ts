@@ -17,7 +17,8 @@
 // stays identical regardless of provider.
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const GEMINI_OPENAI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const GEMINI_OPENAI_URL =
+  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
 // Free on OpenRouter, unmoderated, supports tool calling. Swap via CHAT_AI_MODEL
 // any time — e.g. "x-ai/grok-4.1-fast" (paid, very permissive) once budget allows.

@@ -53,7 +53,11 @@ export function useDictation() {
     setSupported(!!getRecognitionCtor());
     return () => {
       wantListeningRef.current = false;
-      try { recRef.current?.abort(); } catch { /* noop */ }
+      try {
+        recRef.current?.abort();
+      } catch {
+        /* noop */
+      }
       recRef.current = null;
     };
   }, []);
@@ -159,7 +163,11 @@ export function useDictation() {
 
     const rec = recRef.current;
     if (rec) {
-      try { rec.stop(); } catch { /* noop */ }
+      try {
+        rec.stop();
+      } catch {
+        /* noop */
+      }
     }
 
     committedRef.current = "";
@@ -171,4 +179,3 @@ export function useDictation() {
 
   return { supported, listening, interim, start, stop };
 }
-

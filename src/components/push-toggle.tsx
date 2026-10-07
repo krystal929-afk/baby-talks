@@ -48,10 +48,14 @@ export function PushToggle() {
       const key = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: key.buffer.slice(key.byteOffset, key.byteOffset + key.byteLength) as ArrayBuffer,
+        applicationServerKey: key.buffer.slice(
+          key.byteOffset,
+          key.byteOffset + key.byteLength,
+        ) as ArrayBuffer,
       });
       const json = sub.toJSON() as { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
-      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) throw new Error("bad subscription");
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth)
+        throw new Error("bad subscription");
       await subFn({
         data: {
           endpoint: json.endpoint,

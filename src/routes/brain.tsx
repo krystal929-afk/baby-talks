@@ -1,7 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Brain, Lightbulb, Loader2, Pencil, Save, Search, Trash2, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Brain,
+  Lightbulb,
+  Loader2,
+  Pencil,
+  Save,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -46,7 +56,10 @@ function BrainPage() {
   return (
     <div className="min-h-screen pb-16">
       <header className="px-4 pb-4 pt-8 text-center">
-        <Link to="/" className="absolute left-4 top-8 inline-flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground">
+        <Link
+          to="/"
+          className="absolute left-4 top-8 inline-flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-3 w-3" /> Notepad
         </Link>
         <img
@@ -65,10 +78,18 @@ function BrainPage() {
 
       <div className="mx-auto max-w-3xl px-4">
         <div className="mb-3 grid grid-cols-2 gap-2">
-          <TabButton active={tab === "memories"} onClick={() => setTab("memories")} icon={<Brain className="h-4 w-4" />}>
+          <TabButton
+            active={tab === "memories"}
+            onClick={() => setTab("memories")}
+            icon={<Brain className="h-4 w-4" />}
+          >
             Memories
           </TabButton>
-          <TabButton active={tab === "ideas"} onClick={() => setTab("ideas")} icon={<Lightbulb className="h-4 w-4" />}>
+          <TabButton
+            active={tab === "ideas"}
+            onClick={() => setTab("ideas")}
+            icon={<Lightbulb className="h-4 w-4" />}
+          >
             Ideas
           </TabButton>
         </div>
@@ -117,7 +138,7 @@ function TabButton({
         "flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium uppercase tracking-wider transition",
         active
           ? "border-primary bg-primary text-primary-foreground shadow-[0_0_20px_oklch(0.92_0.23_124/40%)]"
-          : "border-border/60 bg-card/60 text-muted-foreground hover:text-foreground"
+          : "border-border/60 bg-card/60 text-muted-foreground hover:text-foreground",
       )}
     >
       {icon}
@@ -152,7 +173,8 @@ function MemoriesList({ q }: { q: string }) {
       />
     );
   }
-  if (filtered.length === 0) return <Empty title="No matches" body={`Nothin' in here for "${q}".`} />;
+  if (filtered.length === 0)
+    return <Empty title="No matches" body={`Nothin' in here for "${q}".`} />;
 
   return (
     <div className="space-y-2">
@@ -223,7 +245,15 @@ function MemoryCard({ memory, onChanged }: { memory: Memory; onChanged: () => vo
         <div className="ml-auto flex gap-1">
           {editing ? (
             <>
-              <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setText(memory.content); }} disabled={busy}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setEditing(false);
+                  setText(memory.content);
+                }}
+                disabled={busy}
+              >
                 <X className="h-3 w-3" />
               </Button>
               <Button size="sm" variant="ghost" onClick={save} disabled={busy}>
@@ -277,7 +307,12 @@ function IdeasList({ q }: { q: string }) {
     return data.filter((i) => {
       if (statusFilter !== "all" && i.status !== statusFilter) return false;
       if (topicFilter !== "all" && i.topic !== topicFilter) return false;
-      if (needle && !i.transcript.toLowerCase().includes(needle) && !i.topic.toLowerCase().includes(needle)) return false;
+      if (
+        needle &&
+        !i.transcript.toLowerCase().includes(needle) &&
+        !i.topic.toLowerCase().includes(needle)
+      )
+        return false;
       return true;
     });
   }, [data, q, statusFilter, topicFilter]);
@@ -286,13 +321,17 @@ function IdeasList({ q }: { q: string }) {
 
   if (isLoading) return <Loading label="Diggin' through the box…" />;
   if (data.length === 0) {
-    return <Empty title="No ideas saved yet" body="Hold the mic on the notepad and spill somethin'." />;
+    return (
+      <Empty title="No ideas saved yet" body="Hold the mic on the notepad and spill somethin'." />
+    );
   }
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-1.5">
-        <Pill active={statusFilter === "all"} onClick={() => setStatusFilter("all")}>All status</Pill>
+        <Pill active={statusFilter === "all"} onClick={() => setStatusFilter("all")}>
+          All status
+        </Pill>
         {STATUS_ORDER.map((s) => (
           <Pill key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
             {STATUS_META[s].label}
@@ -301,7 +340,9 @@ function IdeasList({ q }: { q: string }) {
       </div>
       {topics.length > 1 && (
         <div className="flex flex-wrap gap-1.5">
-          <Pill active={topicFilter === "all"} onClick={() => setTopicFilter("all")}>All topics</Pill>
+          <Pill active={topicFilter === "all"} onClick={() => setTopicFilter("all")}>
+            All topics
+          </Pill>
           {topics.map((t) => (
             <Pill key={t} active={topicFilter === t} onClick={() => setTopicFilter(t)}>
               {t}
@@ -337,7 +378,7 @@ function Pill({
         "shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider transition",
         active
           ? "border-primary bg-primary text-primary-foreground"
-          : "border-border/60 bg-card/60 text-muted-foreground hover:text-foreground"
+          : "border-border/60 bg-card/60 text-muted-foreground hover:text-foreground",
       )}
     >
       {children}
@@ -402,7 +443,15 @@ function IdeaRowCard({ idea, onChanged }: { idea: IdeaRow; onChanged: () => void
       <div className="mt-2 flex justify-end gap-1">
         {editing ? (
           <>
-            <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setText(idea.transcript); }} disabled={busy}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setEditing(false);
+                setText(idea.transcript);
+              }}
+              disabled={busy}
+            >
               <X className="h-3 w-3" />
             </Button>
             <Button size="sm" variant="ghost" onClick={save} disabled={busy}>

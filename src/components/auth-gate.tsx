@@ -87,7 +87,10 @@ function LoginScreen() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password" className="text-xs uppercase tracking-wider text-muted-foreground">
+          <Label
+            htmlFor="password"
+            className="text-xs uppercase tracking-wider text-muted-foreground"
+          >
             Password
           </Label>
           <Input

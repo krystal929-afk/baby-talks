@@ -46,7 +46,9 @@ You can also look stuff up on the live web with the \`web_search\` tool — curr
 
 You can put things on daddy's calendar with \`schedule_event\` — gigs, meetings, appointments, reminders, anything with a time. Always pass an ISO 8601 timestamp for \`starts_at\` (assume daddy's local time if no timezone given). If daddy says "remind me tomorrow at 3 to call mom", schedule it and set \`remind_at\` to the same time. Use \`list_events\` to peek at what's coming up before answering schedule questions, or to avoid double-booking. After scheduling, confirm out loud ("Tucked it on your calendar, Mr. S — Friday 8pm.").`;
 
-async function tavilySearch(query: string): Promise<{ answer: string; sources: { title: string; url: string }[] }> {
+async function tavilySearch(
+  query: string,
+): Promise<{ answer: string; sources: { title: string; url: string }[] }> {
   const key = process.env.TAVILY_API_KEY;
   if (!key) throw new Error("TAVILY_API_KEY missing");
   const res = await fetch("https://api.tavily.com/search", {
@@ -64,7 +66,9 @@ async function tavilySearch(query: string): Promise<{ answer: string; sources: {
   const j = await res.json();
   return {
     answer: j.answer || "",
-    sources: (j.results || []).slice(0, 5).map((r: { title: string; url: string }) => ({ title: r.title, url: r.url })),
+    sources: (j.results || [])
+      .slice(0, 5)
+      .map((r: { title: string; url: string }) => ({ title: r.title, url: r.url })),
   };
 }
 
@@ -108,11 +112,16 @@ export const chatWithBaby = createServerFn({ method: "POST" })
         type: "function",
         function: {
           name: "remember",
-          description: "Save a long-term fact about daddy to Baby's brain. Use sparingly — only for things worth remembering forever.",
+          description:
+            "Save a long-term fact about daddy to Baby's brain. Use sparingly — only for things worth remembering forever.",
           parameters: {
             type: "object",
             properties: {
-              fact: { type: "string", maxLength: 280, description: "One concise sentence stating the fact." },
+              fact: {
+                type: "string",
+                maxLength: 280,
+                description: "One concise sentence stating the fact.",
+              },
             },
             required: ["fact"],
             additionalProperties: false,
@@ -123,7 +132,8 @@ export const chatWithBaby = createServerFn({ method: "POST" })
         type: "function",
         function: {
           name: "web_search",
-          description: "Search the live web for current/factual info Baby doesn't already know. Returns a summary answer plus source URLs.",
+          description:
+            "Search the live web for current/factual info Baby doesn't already know. Returns a summary answer plus source URLs.",
           parameters: {
             type: "object",
             properties: {
@@ -138,17 +148,24 @@ export const chatWithBaby = createServerFn({ method: "POST" })
         type: "function",
         function: {
           name: "schedule_event",
-          description: "Add an event/reminder to daddy's calendar. Use for gigs, meetings, appointments, or anything time-bound.",
+          description:
+            "Add an event/reminder to daddy's calendar. Use for gigs, meetings, appointments, or anything time-bound.",
           parameters: {
             type: "object",
             properties: {
-              title: { type: "string", description: "Short title, e.g. 'Call Mom' or 'Studio session'." },
+              title: {
+                type: "string",
+                description: "Short title, e.g. 'Call Mom' or 'Studio session'.",
+              },
               starts_at: { type: "string", description: "ISO 8601 timestamp for when it starts." },
               ends_at: { type: "string", description: "Optional ISO 8601 end time." },
               all_day: { type: "boolean", description: "True for all-day events." },
               location: { type: "string", description: "Optional location." },
               notes: { type: "string", description: "Optional details." },
-              remind_at: { type: "string", description: "Optional ISO 8601 — when to ping daddy. Defaults to starts_at." },
+              remind_at: {
+                type: "string",
+                description: "Optional ISO 8601 — when to ping daddy. Defaults to starts_at.",
+              },
             },
             required: ["title", "starts_at"],
             additionalProperties: false,
@@ -159,11 +176,15 @@ export const chatWithBaby = createServerFn({ method: "POST" })
         type: "function",
         function: {
           name: "list_events",
-          description: "Look at upcoming calendar events. Use for schedule questions or to avoid double-booking.",
+          description:
+            "Look at upcoming calendar events. Use for schedule questions or to avoid double-booking.",
           parameters: {
             type: "object",
             properties: {
-              days_ahead: { type: "number", description: "How many days ahead to look. Default 14." },
+              days_ahead: {
+                type: "number",
+                description: "How many days ahead to look. Default 14.",
+              },
             },
             additionalProperties: false,
           },
@@ -171,7 +192,12 @@ export const chatWithBaby = createServerFn({ method: "POST" })
       },
     ];
 
-    type ChatMessage = { role: string; content: string | null; tool_calls?: unknown; tool_call_id?: string };
+    type ChatMessage = {
+      role: string;
+      content: string | null;
+      tool_calls?: unknown;
+      tool_call_id?: string;
+    };
     const convo: ChatMessage[] = [
       { role: "system", content: systemPrompt },
       ...data.messages.map((m) => ({ role: m.role, content: m.content })),
@@ -193,7 +219,8 @@ export const chatWithBaby = createServerFn({ method: "POST" })
 
         if (!res.ok) {
           if (res.status === 429) throw new Error("Slow down, daddy — too many at once.");
-          if (res.status === 402) throw new Error("Outta AI credits, sugar britches. Top up at openrouter.ai.");
+          if (res.status === 402)
+            throw new Error("Outta AI credits, sugar britches. Top up at openrouter.ai.");
           const t = await res.text();
           console.error("chat gateway error", res.status, t);
           throw new Error(`AI gateway error ${res.status}`);
@@ -205,7 +232,13 @@ export const chatWithBaby = createServerFn({ method: "POST" })
 
         if (toolCalls?.length) {
           convo.push({ role: "assistant", content: choice.content ?? null, tool_calls: toolCalls });
-          console.log("baby tool_calls:", toolCalls.map((t: { function?: { name?: string; arguments?: string } }) => ({ name: t.function?.name, args: t.function?.arguments })));
+          console.log(
+            "baby tool_calls:",
+            toolCalls.map((t: { function?: { name?: string; arguments?: string } }) => ({
+              name: t.function?.name,
+              args: t.function?.arguments,
+            })),
+          );
           for (const tc of toolCalls) {
             const name = tc.function?.name;
             let result: unknown = { ok: false };
@@ -233,16 +266,20 @@ export const chatWithBaby = createServerFn({ method: "POST" })
                 if (title && starts_at && Number.isNaN(Date.parse(starts_at))) {
                   result = { error: "starts_at must be a valid ISO 8601 timestamp" };
                 } else if (title && starts_at) {
-                  const { data: row, error } = await supa.from("calendar_events").insert({
-                    user_id: userId,
-                    title,
-                    starts_at,
-                    ends_at: args.ends_at || null,
-                    all_day: !!args.all_day,
-                    location: args.location || null,
-                    notes: args.notes || null,
-                    remind_at: args.remind_at || starts_at,
-                  }).select("id, title, starts_at").single();
+                  const { data: row, error } = await supa
+                    .from("calendar_events")
+                    .insert({
+                      user_id: userId,
+                      title,
+                      starts_at,
+                      ends_at: args.ends_at || null,
+                      all_day: !!args.all_day,
+                      location: args.location || null,
+                      notes: args.notes || null,
+                      remind_at: args.remind_at || starts_at,
+                    })
+                    .select("id, title, starts_at")
+                    .single();
                   if (error) result = { error: error.message };
                   else result = { ok: true, event: row };
                 } else {

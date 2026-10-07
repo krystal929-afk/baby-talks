@@ -66,8 +66,10 @@ export const classifyIdea = createServerFn({ method: "POST" })
       });
 
       if (!res.ok) {
-        if (res.status === 429) throw new Error("Slow down, daddy — too many requests. Gimme a sec, hee hee.");
-        if (res.status === 402) throw new Error("Outta credits, sugar britches. Check the AI account balance.");
+        if (res.status === 429)
+          throw new Error("Slow down, daddy — too many requests. Gimme a sec, hee hee.");
+        if (res.status === 402)
+          throw new Error("Outta credits, sugar britches. Check the AI account balance.");
         const t = await res.text();
         console.error("classify gateway error", res.status, t);
         throw new Error(`AI gateway error ${res.status}`);
@@ -135,8 +137,18 @@ export const growIdea = createServerFn({ method: "POST" })
                 parameters: {
                   type: "object",
                   properties: {
-                    next_steps: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 },
-                    key_questions: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 },
+                    next_steps: {
+                      type: "array",
+                      items: { type: "string" },
+                      minItems: 3,
+                      maxItems: 5,
+                    },
+                    key_questions: {
+                      type: "array",
+                      items: { type: "string" },
+                      minItems: 3,
+                      maxItems: 5,
+                    },
                     risks: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 4 },
                   },
                   required: ["next_steps", "key_questions", "risks"],
@@ -157,7 +169,8 @@ export const growIdea = createServerFn({ method: "POST" })
       }
       const json = await res.json();
       const call = json.choices?.[0]?.message?.tool_calls?.[0];
-      if (!call?.function?.arguments) throw new Error("Baby blanked on that one — try growing it again.");
+      if (!call?.function?.arguments)
+        throw new Error("Baby blanked on that one — try growing it again.");
       const args = JSON.parse(call.function.arguments);
       const strings = (v: unknown) => (Array.isArray(v) ? v.map(String) : []);
       return {

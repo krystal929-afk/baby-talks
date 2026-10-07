@@ -14,7 +14,10 @@ const BABY_LINES = [
 ];
 
 function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 function timingSafeEqual(a: string, b: string): boolean {
@@ -30,7 +33,8 @@ async function run(request: Request) {
   // Shared secret header so randos can't trigger pushes / mark events reminded.
   const expected = process.env.CRON_SECRET;
   const provided = request.headers.get("x-cron-secret") ?? "";
-  if (!expected || !timingSafeEqual(provided, expected)) return json({ error: "unauthorized" }, 401);
+  if (!expected || !timingSafeEqual(provided, expected))
+    return json({ error: "unauthorized" }, 401);
 
   if (!configurePush()) return json({ error: "VAPID_PRIVATE_KEY not configured" }, 500);
 
@@ -45,7 +49,9 @@ async function run(request: Request) {
   if (error) return json({ error: error.message }, 500);
   if (!events || events.length === 0) return json({ ok: true, processed: 0 });
 
-  const { data: subs, error: subsError } = await supabaseAdmin.from("push_subscriptions").select("*");
+  const { data: subs, error: subsError } = await supabaseAdmin
+    .from("push_subscriptions")
+    .select("*");
   if (subsError) return json({ error: subsError.message }, 500);
 
   let pushed = 0;
@@ -62,7 +68,10 @@ async function run(request: Request) {
       if (await sendPush(supabaseAdmin, s, payload)) pushed++;
     }
 
-    const { error: updError } = await supabaseAdmin.from("calendar_events").update({ reminded: true }).eq("id", ev.id);
+    const { error: updError } = await supabaseAdmin
+      .from("calendar_events")
+      .update({ reminded: true })
+      .eq("id", ev.id);
     if (updError) console.error("mark reminded failed", ev.id, updError.message);
   }
 

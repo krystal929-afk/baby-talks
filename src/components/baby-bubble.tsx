@@ -33,7 +33,8 @@ export function BabyBubble({
   }, [text, animate, intervalMs]);
 
   const done = shown.length >= text.length;
-  const pad = size === "sm" ? "px-3 py-2 text-xs leading-snug" : "px-4 py-3 text-base leading-relaxed";
+  const pad =
+    size === "sm" ? "px-3 py-2 text-xs leading-snug" : "px-4 py-3 text-base leading-relaxed";
 
   return (
     <div

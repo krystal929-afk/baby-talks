@@ -1,12 +1,25 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Mic, Square, Loader2, Trash2, Sparkles, X, Plus, Send, CalendarDays, Brain, LogOut } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Mic,
+  Square,
+  Loader2,
+  Trash2,
+  Sparkles,
+  X,
+  Plus,
+  Send,
+  CalendarDays,
+  Brain,
+  LogOut,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useDictation } from "@/hooks/use-dictation";
-import { classifyIdea, growIdea, type DevPack } from "@/server/baby.functions";
+import { classifyIdea, growIdea, type DevPack } from "@/functions/baby.functions";
+import { STATUS_META, STATUS_ORDER, type Status } from "@/lib/ideas";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,18 +30,9 @@ import { BabyChatButton, BabyChatDrawer } from "@/components/baby-chat";
 import { signOut } from "@/components/auth-gate";
 import logoPrimary from "@/assets/brand/logo-primary.png";
 
-// Local QueryClient — index page is the whole app, no other routes use it yet.
-const qc = new QueryClient();
-
 export const Route = createFileRoute("/")({
-  component: () => (
-    <QueryClientProvider client={qc}>
-      <BabyApp />
-    </QueryClientProvider>
-  ),
+  component: BabyApp,
 });
-
-type Status = "grow" | "rethink" | "trash" | "parking_lot";
 
 type Idea = {
   id: string;
@@ -40,38 +44,10 @@ type Idea = {
   updated_at: string;
 };
 
-const STATUS_META: Record<Status, { label: string; cls: string; chipCls: string; tagline: string }> = {
-  grow: {
-    label: "Grow",
-    cls: "border-grow/50 bg-grow/10",
-    chipCls: "bg-grow text-grow-foreground",
-    tagline: "Feed it, daddy",
-  },
-  rethink: {
-    label: "Rethink",
-    cls: "border-rethink/50 bg-rethink/10",
-    chipCls: "bg-rethink text-rethink-foreground",
-    tagline: "Still squirmin'",
-  },
-  parking_lot: {
-    label: "Parking Lot",
-    cls: "border-parking/50 bg-parking/10",
-    chipCls: "bg-parking text-parking-foreground",
-    tagline: "Tucked away",
-  },
-  trash: {
-    label: "Trash",
-    cls: "border-trash/50 bg-trash/10",
-    chipCls: "bg-trash text-trash-foreground",
-    tagline: "Burn it, boy",
-  },
-};
-
-const STATUS_ORDER: Status[] = ["grow", "rethink", "parking_lot", "trash"];
-
 function BabyApp() {
   const queryClient = useQueryClient();
-  const [openIdea, setOpenIdea] = useState<Idea | null>(null);
+  // Store only the id so the dialog always renders the freshest copy from the query.
+  const [openIdeaId, setOpenIdeaId] = useState<string | null>(null);
   const [topicFilter, setTopicFilter] = useState<string>("all");
   const [chatOpen, setChatOpen] = useState(false);
 
@@ -87,6 +63,11 @@ function BabyApp() {
     },
   });
 
+  const openIdea = useMemo(
+    () => ideas.find((i) => i.id === openIdeaId) ?? null,
+    [ideas, openIdeaId],
+  );
+
   const topics = useMemo(() => {
     const s = new Set<string>();
     ideas.forEach((i) => s.add(i.topic));
@@ -95,7 +76,7 @@ function BabyApp() {
 
   const visible = useMemo(
     () => (topicFilter === "all" ? ideas : ideas.filter((i) => i.topic === topicFilter)),
-    [ideas, topicFilter]
+    [ideas, topicFilter],
   );
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["ideas"] });
@@ -133,7 +114,7 @@ function BabyApp() {
               const items = visible.filter((i) => i.status === s);
               if (items.length === 0) return null;
               return (
-                <Column key={s} status={s} ideas={items} onOpen={setOpenIdea} />
+                <Column key={s} status={s} ideas={items} onOpen={(i) => setOpenIdeaId(i.id)} />
               );
             })}
           </div>
@@ -142,13 +123,7 @@ function BabyApp() {
 
       <CaptureBar onSaved={refresh} />
 
-      <IdeaDetail
-        idea={openIdea}
-        onClose={() => setOpenIdea(null)}
-        onChanged={() => {
-          refresh();
-        }}
-      />
+      <IdeaDetail idea={openIdea} onClose={() => setOpenIdeaId(null)} onChanged={refresh} />
 
       <BabyChatButton onClick={() => setChatOpen(true)} />
       <BabyChatDrawer
@@ -203,7 +178,9 @@ function QuickTiles() {
         </div>
         <div>
           <div className="font-display text-base text-foreground">Calendar</div>
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Gigs &amp; reminders</div>
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            Gigs &amp; reminders
+          </div>
         </div>
       </Link>
       <Link
@@ -215,7 +192,9 @@ function QuickTiles() {
         </div>
         <div>
           <div className="font-display text-base text-foreground">Brain</div>
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">What Baby remembers</div>
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            What Baby remembers
+          </div>
         </div>
       </Link>
     </div>
@@ -238,7 +217,7 @@ function FilterChip({
         "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition",
         active
           ? "border-primary bg-primary text-primary-foreground shadow-[0_0_20px_oklch(0.92_0.23_124/40%)]"
-          : "border-border/60 bg-card/60 text-muted-foreground hover:text-foreground"
+          : "border-border/60 bg-card/60 text-muted-foreground hover:text-foreground",
       )}
     >
       {children}
@@ -282,19 +261,22 @@ function IdeaCard({ idea, onClick }: { idea: Idea; onClick: () => void }) {
       onClick={onClick}
       className={cn(
         "w-full rounded-xl border p-4 text-left transition active:scale-[0.99]",
-        "border-border/60 bg-card/80 hover:border-primary/50 hover:bg-card"
+        "border-border/60 bg-card/80 hover:border-primary/50 hover:bg-card",
       )}
     >
       <div className="mb-2 flex items-center gap-2">
-        <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider", meta.chipCls)}>
+        <span
+          className={cn(
+            "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+            meta.chipCls,
+          )}
+        >
           {meta.label}
         </span>
         <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
           {idea.topic}
         </span>
-        {idea.dev_pack && (
-          <Sparkles className="h-3 w-3 text-accent" />
-        )}
+        {idea.dev_pack && <Sparkles className="h-3 w-3 text-accent" />}
       </div>
       <p className="line-clamp-3 text-sm text-foreground">{idea.transcript}</p>
       <p className="mt-2 text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -353,7 +335,9 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
     } catch (e) {
       console.error(e);
       pingBaby("idle", "");
-      toast.error(e instanceof Error ? e.message : "Baby chipped a nail. Try again, sugar britches.");
+      toast.error(
+        e instanceof Error ? e.message : "Baby chipped a nail. Try again, sugar britches.",
+      );
     } finally {
       setPending(false);
     }
@@ -361,7 +345,11 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
 
   function handlePressStart(e: React.PointerEvent<HTMLButtonElement>) {
     if (pending) return;
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* noop */ }
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* noop */
+    }
     holdActiveRef.current = true;
     pressStartTsRef.current = Date.now();
     if (dictation.supported) {
@@ -373,7 +361,11 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
   function handlePressEnd(e: React.PointerEvent<HTMLButtonElement>) {
     if (!holdActiveRef.current) return;
     holdActiveRef.current = false;
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* noop */
+    }
 
     const heldMs = Date.now() - pressStartTsRef.current;
     if (heldMs < 250) {
@@ -395,7 +387,9 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
       <div className="mx-auto max-w-3xl px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
         {(dictation.listening || liveText) && (
           <div className="mb-3 rounded-xl border border-border/60 bg-card/80 px-3 py-2 text-sm text-foreground">
-            <span className="text-muted-foreground">{dictation.listening ? "Listening… " : ""}</span>
+            <span className="text-muted-foreground">
+              {dictation.listening ? "Listening… " : ""}
+            </span>
             {liveText || <span className="italic text-muted-foreground">whisper somethin'…</span>}
           </div>
         )}
@@ -416,7 +410,11 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
               onClick={() => saveIdea(text)}
               className="h-auto"
             >
-              {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {pending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
             </Button>
           </div>
         )}
@@ -441,7 +439,7 @@ function CaptureBar({ onSaved }: { onSaved: () => void }) {
             className={cn(
               "relative flex h-20 w-20 select-none items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[var(--shadow-glow)] transition",
               dictation.listening && "recording-pulse",
-              pending && "opacity-60"
+              pending && "opacity-60",
             )}
             style={{
               touchAction: "none",
@@ -486,27 +484,32 @@ function IdeaDetail({
   const [saving, setSaving] = useState(false);
   const [growing, setGrowing] = useState(false);
 
+  const ideaId = idea?.id;
+  const transcript = idea?.transcript;
   useEffect(() => {
-    if (idea) setEditText(idea.transcript);
-  }, [idea]);
+    if (transcript !== undefined) setEditText(transcript);
+  }, [ideaId, transcript]);
 
   if (!idea) return null;
 
-  async function update(patch: Partial<Idea>) {
+  /** Returns true when the update was saved. */
+  async function update(patch: Partial<Pick<Idea, "status" | "transcript">>): Promise<boolean> {
     setSaving(true);
     try {
       const { error } = await supabase.from("ideas").update(patch).eq("id", idea!.id);
       if (error) throw error;
       onChanged();
+      return true;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
+      return false;
     } finally {
       setSaving(false);
     }
   }
 
   async function changeStatus(newStatus: Status) {
-    await update({ status: newStatus });
+    if (!(await update({ status: newStatus }))) return;
     if (newStatus === "grow" && !idea!.dev_pack) {
       await handleGrow();
     } else {
@@ -542,7 +545,7 @@ function IdeaDetail({
   }
 
   async function handleSaveText() {
-    if (editText.trim() && editText !== idea!.transcript) {
+    if (editText.trim() && editText.trim() !== idea!.transcript) {
       await update({ transcript: editText.trim() });
     }
   }
@@ -557,7 +560,12 @@ function IdeaDetail({
         </DialogHeader>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider", meta.chipCls)}>
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+              meta.chipCls,
+            )}
+          >
             {meta.label}
           </span>
           <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -589,7 +597,7 @@ function IdeaDetail({
                   "rounded-lg border px-3 py-2 text-sm font-medium transition",
                   active
                     ? cn(m.cls, "border-primary text-foreground")
-                    : "border-border/60 bg-background text-muted-foreground hover:text-foreground"
+                    : "border-border/60 bg-background text-muted-foreground hover:text-foreground",
                 )}
               >
                 {m.label}
@@ -601,11 +609,20 @@ function IdeaDetail({
         <div className="flex flex-wrap gap-2">
           {idea.status === "grow" && (
             <Button variant="outline" size="sm" onClick={handleGrow} disabled={growing}>
-              {growing ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Sparkles className="mr-1 h-3 w-3" />}
+              {growing ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <Sparkles className="mr-1 h-3 w-3" />
+              )}
               {idea.dev_pack ? "Re-grow" : "Grow this"}
             </Button>
           )}
-          <Button variant="ghost" size="sm" className="ml-auto text-destructive" onClick={handleDelete}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto text-destructive"
+            onClick={handleDelete}
+          >
             <Trash2 className="mr-1 h-3 w-3" /> Delete
           </Button>
         </div>
@@ -634,7 +651,9 @@ function PackList({ title, items }: { title: string; items: string[] }) {
   if (!items?.length) return null;
   return (
     <div>
-      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {title}
+      </p>
       <ul className="space-y-1 text-sm text-foreground">
         {items.map((it, i) => (
           <li key={i} className="flex gap-2">

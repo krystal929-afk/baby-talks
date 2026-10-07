@@ -1,13 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { utilGateway, providerExtras, gatewayHeaders } from "./ai-gateway";
+import { utilGateway, providerExtras, gatewayHeaders } from "@/server/ai-gateway";
+import { BABY_PERSONA } from "@/server/persona";
+import { STATUSES, TOPICS, isStatus, isTopic, type Status, type Topic } from "@/lib/ideas";
 
-const TOPICS = ["Business", "Invention", "Personal", "Family", "Training", "Other"] as const;
-const STATUSES = ["grow", "rethink", "trash", "parking_lot"] as const;
-
-export type Topic = (typeof TOPICS)[number];
-export type Status = (typeof STATUSES)[number];
+export type { Status, Topic };
 
 const ClassifyInput = z.object({
   transcript: z.string().min(1).max(5000),
@@ -19,13 +17,8 @@ export type ClassifyResult = {
   baby_reply: string;
 };
 
-const SYSTEM_PROMPT = `You are Baby — Mr. Satan's giggling, bratty, blonde-pigtailed killer-doll assistant. Think Baby Firefly (Sheri Moon Zombie in House of 1000 Corpses / Devil's Rejects): childlike singsong drawl spiked with violent glee, twirly hair-tossing self-obsession, kiss-kiss-kill-kill energy, devoted to her daddy.
-Voice rules:
-- First-person playful, breathy, hyper. Loves herself ("I'm BAY-bee!"). Calls the user "daddy", "boy", "Mr. S", "honeybun", "sugar britches" — rotate.
-- Drawls vowels in writing sometimes ("sooo good", "weeeee"), ends lines with little laughs ("hee hee", "tee hee", "mmmwah") — sparingly, max once per reply.
-- Loves to file, lock, tag, pet, kiss the ideas. A touch of horror-glam camp ("gonna keep this one in my jewelry box").
-- Mildly bratty/violent imagery is fine ("scalp it later", "feed it to daddy"); never slurs, never actually cruel to the user, no real-world threats.
-Keep replies to ONE short sentence (under 16 words). Never use emojis. BANNED: "ope", "you betcha", "hun", "daddy-o", "puddin'", Midwestern-isms.
+const SYSTEM_PROMPT = `${BABY_PERSONA}
+Keep replies to ONE short sentence (under 16 words).
 Your job: read the user's idea and decide:
   - status: one of "grow" (worth pursuing), "rethink" (needs work), "trash" (not worth it), "parking_lot" (default; save for later).
     Default to "parking_lot" unless the idea clearly signals one of the others (e.g. "this is gold" -> grow, "scrap this" -> trash, "not sure" -> rethink).
@@ -36,9 +29,9 @@ export const classifyIdea = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ClassifyInput.parse(d))
   .handler(async ({ data }): Promise<ClassifyResult> => {
-    const gw = utilGateway();
-
     try {
+      // Inside the try so a missing key falls back instead of blocking capture.
+      const gw = utilGateway();
       const res = await fetch(gw.url, {
         method: "POST",
         headers: gatewayHeaders(gw),
@@ -73,8 +66,10 @@ export const classifyIdea = createServerFn({ method: "POST" })
       });
 
       if (!res.ok) {
-        if (res.status === 429) throw new Error("Slow down, daddy — too many requests. Gimme a sec, hee hee.");
-        if (res.status === 402) throw new Error("Outta credits, sugar britches. Check the AI account balance.");
+        if (res.status === 429)
+          throw new Error("Slow down, daddy — too many requests. Gimme a sec, hee hee.");
+        if (res.status === 402)
+          throw new Error("Outta credits, sugar britches. Check the AI account balance.");
         const t = await res.text();
         console.error("classify gateway error", res.status, t);
         throw new Error(`AI gateway error ${res.status}`);
@@ -85,8 +80,8 @@ export const classifyIdea = createServerFn({ method: "POST" })
       if (!call?.function?.arguments) throw new Error("No tool call returned");
       const args = JSON.parse(call.function.arguments);
       return {
-        status: STATUSES.includes(args.status) ? args.status : "parking_lot",
-        topic: TOPICS.includes(args.topic) ? args.topic : "Other",
+        status: isStatus(args.status) ? args.status : "parking_lot",
+        topic: isTopic(args.topic) ? args.topic : "Other",
         baby_reply: String(args.baby_reply || "Tucked it in my jewelry box, daddy."),
       };
     } catch (e) {
@@ -111,9 +106,11 @@ export type DevPack = {
   risks: string[];
 };
 
-const GROW_PROMPT = `You are Baby — Mr. Satan's giggling, bratty Baby-Firefly-style assistant — helping daddy grow a promising idea.
+const GROW_PROMPT = `${BABY_PERSONA}
+
+You are helping daddy grow a promising idea.
 Return: 3-5 concrete next_steps (action verbs), 3-5 key_questions to answer, and 2-4 risks.
-Keep each item to one short sentence. Plain language, practical, a little playful and sing-song, no fluff. No emojis. No Midwestern-isms. No "daddy-o" / "puddin'".`;
+Keep each item to one short sentence. Plain language, practical, a little playful and sing-song, no fluff.`;
 
 export const growIdea = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -140,8 +137,18 @@ export const growIdea = createServerFn({ method: "POST" })
                 parameters: {
                   type: "object",
                   properties: {
-                    next_steps: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 },
-                    key_questions: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 },
+                    next_steps: {
+                      type: "array",
+                      items: { type: "string" },
+                      minItems: 3,
+                      maxItems: 5,
+                    },
+                    key_questions: {
+                      type: "array",
+                      items: { type: "string" },
+                      minItems: 3,
+                      maxItems: 5,
+                    },
                     risks: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 4 },
                   },
                   required: ["next_steps", "key_questions", "risks"],
@@ -162,11 +169,14 @@ export const growIdea = createServerFn({ method: "POST" })
       }
       const json = await res.json();
       const call = json.choices?.[0]?.message?.tool_calls?.[0];
+      if (!call?.function?.arguments)
+        throw new Error("Baby blanked on that one — try growing it again.");
       const args = JSON.parse(call.function.arguments);
+      const strings = (v: unknown) => (Array.isArray(v) ? v.map(String) : []);
       return {
-        next_steps: args.next_steps ?? [],
-        key_questions: args.key_questions ?? [],
-        risks: args.risks ?? [],
+        next_steps: strings(args.next_steps),
+        key_questions: strings(args.key_questions),
+        risks: strings(args.risks),
       };
     } catch (e) {
       console.error("growIdea failed:", e);

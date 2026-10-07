@@ -38,7 +38,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function LoginScreen() {
-  const mode = "signin" as const;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -47,18 +46,9 @@ function LoginScreen() {
     e.preventDefault();
     setBusy(true);
     try {
-      if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: window.location.origin },
-        });
-        if (error) throw error;
-        toast.success("Account made. Logging you in.");
-      }
+      // Sign-in only: accounts are created in the Supabase dashboard (public sign-ups disabled).
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sign in failed");
     } finally {
@@ -97,13 +87,16 @@ function LoginScreen() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password" className="text-xs uppercase tracking-wider text-muted-foreground">
+          <Label
+            htmlFor="password"
+            className="text-xs uppercase tracking-wider text-muted-foreground"
+          >
             Password
           </Label>
           <Input
             id="password"
             type="password"
-            autoComplete={mode === "signin" ? "current-password" : "new-password"}
+            autoComplete="current-password"
             required
             minLength={8}
             value={password}

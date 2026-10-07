@@ -8,16 +8,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
-import { chatWithBaby, type ChatMsg } from "@/server/chat.functions";
+import { chatWithBaby, type ChatMsg } from "@/functions/chat.functions";
+import { getBrowserTimeZone } from "@/lib/timezone";
 import { BabyBubble } from "@/components/baby-bubble";
 import {
   addMemory,
   deleteMemory,
   listMemories,
+  MEMORIES_QUERY_KEY,
   updateMemory,
   type Memory,
-} from "@/server/memories.functions";
+} from "@/functions/memories.functions";
 
 type Props = {
   open: boolean;
@@ -66,7 +67,9 @@ function ChatPane({ context }: { context?: string }) {
     mutationFn: async (text: string) => {
       const next: ChatMsg[] = [...messages, { role: "user", content: text }];
       setMessages(next);
-      const res = await chatWithBaby({ data: { messages: next, context } });
+      const res = await chatWithBaby({
+        data: { messages: next.slice(-40), context, timeZone: getBrowserTimeZone() },
+      });
       setMessages([...next, { role: "assistant", content: res.reply }]);
       if (res.saved_memory) {
         toast.success("Baby tucked it in her brain", { description: res.saved_memory });
@@ -140,7 +143,7 @@ function ChatPane({ context }: { context?: string }) {
 function BrainPane() {
   const qc = useQueryClient();
   const { data: memories = [], isLoading } = useQuery({
-    queryKey: ["baby_memories"],
+    queryKey: MEMORIES_QUERY_KEY,
     queryFn: () => listMemories(),
   });
   const [draft, setDraft] = useState("");
@@ -149,7 +152,7 @@ function BrainPane() {
     mutationFn: (content: string) => addMemory({ data: { content } }),
     onSuccess: () => {
       setDraft("");
-      qc.invalidateQueries({ queryKey: ["baby_memories"] });
+      qc.invalidateQueries({ queryKey: MEMORIES_QUERY_KEY });
       toast.success("Added to Baby's brain");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -157,12 +160,14 @@ function BrainPane() {
 
   const del = useMutation({
     mutationFn: (id: string) => deleteMemory({ data: { id } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["baby_memories"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: MEMORIES_QUERY_KEY }),
+    onError: (e: Error) => toast.error(e.message || "Couldn't forget that one."),
   });
 
   const update = useMutation({
     mutationFn: (m: { id: string; content: string }) => updateMemory({ data: m }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["baby_memories"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: MEMORIES_QUERY_KEY }),
+    onError: (e: Error) => toast.error(e.message || "Couldn't save that edit."),
   });
 
   return (
@@ -193,7 +198,12 @@ function BrainPane() {
           </p>
         )}
         {memories.map((m) => (
-          <MemoryRow key={m.id} memory={m} onDelete={() => del.mutate(m.id)} onUpdate={(content) => update.mutate({ id: m.id, content })} />
+          <MemoryRow
+            key={m.id}
+            memory={m}
+            onDelete={() => del.mutate(m.id)}
+            onUpdate={(content) => update.mutate({ id: m.id, content })}
+          />
         ))}
       </div>
     </div>
@@ -238,7 +248,7 @@ function MemoryRow({
             variant="ghost"
             className="size-7"
             onClick={() => {
-              if (val.trim().length >= 2 && val !== memory.content) onUpdate(val.trim());
+              if (val.trim().length >= 2 && val.trim() !== memory.content) onUpdate(val.trim());
               setEditing(false);
             }}
           >

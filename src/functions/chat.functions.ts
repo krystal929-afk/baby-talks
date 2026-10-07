@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { chatGateway, providerExtras, gatewayHeaders } from "./ai-gateway";
-import { BABY_PERSONA } from "./persona";
+import { chatGateway, providerExtras, gatewayHeaders } from "@/server/ai-gateway";
+import { BABY_PERSONA } from "@/server/persona";
 import { safeTimeZone } from "@/lib/timezone";
 
 const Msg = z.object({

@@ -27,7 +27,7 @@ import {
   MEMORIES_QUERY_KEY,
   updateMemory,
   type Memory,
-} from "@/server/memories.functions";
+} from "@/functions/memories.functions";
 
 export const Route = createFileRoute("/brain")({
   head: () => ({

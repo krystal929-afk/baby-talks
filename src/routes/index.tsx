@@ -18,7 +18,7 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useDictation } from "@/hooks/use-dictation";
-import { classifyIdea, growIdea, type DevPack } from "@/server/baby.functions";
+import { classifyIdea, growIdea, type DevPack } from "@/functions/baby.functions";
 import { STATUS_META, STATUS_ORDER, type Status } from "@/lib/ideas";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";

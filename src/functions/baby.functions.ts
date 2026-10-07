@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { utilGateway, providerExtras, gatewayHeaders } from "./ai-gateway";
-import { BABY_PERSONA } from "./persona";
+import { utilGateway, providerExtras, gatewayHeaders } from "@/server/ai-gateway";
+import { BABY_PERSONA } from "@/server/persona";
 import { STATUSES, TOPICS, isStatus, isTopic, type Status, type Topic } from "@/lib/ideas";
 
 export type { Status, Topic };

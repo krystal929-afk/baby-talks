@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { chatWithBaby, type ChatMsg } from "@/server/chat.functions";
+import { chatWithBaby, type ChatMsg } from "@/functions/chat.functions";
 import { getBrowserTimeZone } from "@/lib/timezone";
 import { BabyBubble } from "@/components/baby-bubble";
 import {
@@ -18,7 +18,7 @@ import {
   MEMORIES_QUERY_KEY,
   updateMemory,
   type Memory,
-} from "@/server/memories.functions";
+} from "@/functions/memories.functions";
 
 type Props = {
   open: boolean;

@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { subscribePush, unsubscribePush } from "@/lib/push.functions";
+import { subscribePush, unsubscribePush } from "@/functions/push.functions";
 import { VAPID_PUBLIC_KEY, urlBase64ToUint8Array } from "@/lib/push-config";
 import { getBrowserTimeZone } from "@/lib/timezone";
 

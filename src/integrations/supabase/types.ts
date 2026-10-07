@@ -21,6 +21,7 @@ export type Database = {
           id: string
           source: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           content: string
@@ -28,6 +29,7 @@ export type Database = {
           id?: string
           source?: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           content?: string
@@ -35,6 +37,7 @@ export type Database = {
           id?: string
           source?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -51,6 +54,7 @@ export type Database = {
           starts_at: string
           title: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           all_day?: boolean
@@ -64,6 +68,7 @@ export type Database = {
           starts_at: string
           title: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           all_day?: boolean
@@ -77,6 +82,7 @@ export type Database = {
           starts_at?: string
           title?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -89,6 +95,7 @@ export type Database = {
           topic: string
           transcript: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -98,6 +105,7 @@ export type Database = {
           topic?: string
           transcript: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -107,6 +115,7 @@ export type Database = {
           topic?: string
           transcript?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -119,6 +128,7 @@ export type Database = {
           label: string | null
           last_used_at: string | null
           p256dh: string
+          user_id: string | null
         }
         Insert: {
           auth: string
@@ -128,6 +138,7 @@ export type Database = {
           label?: string | null
           last_used_at?: string | null
           p256dh: string
+          user_id?: string | null
         }
         Update: {
           auth?: string
@@ -137,6 +148,7 @@ export type Database = {
           label?: string | null
           last_used_at?: string | null
           p256dh?: string
+          user_id?: string | null
         }
         Relationships: []
       }

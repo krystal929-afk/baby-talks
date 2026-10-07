@@ -1,13 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  QueryClient,
-  QueryClientProvider,
-} from "@tanstack/react-query";
-import { ArrowLeft, CalendarPlus, Loader2, MapPin, Bell, Trash2, Clock, Zap } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, CalendarPlus, Loader2, MapPin, Bell, Trash2, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -19,8 +13,6 @@ import { Calendar as MonthCalendar } from "@/components/ui/calendar";
 import logoPrimary from "@/assets/brand/logo-primary.png";
 import { PushToggle } from "@/components/push-toggle";
 
-const qc = new QueryClient();
-
 export const Route = createFileRoute("/calendar")({
   head: () => ({
     meta: [
@@ -28,11 +20,7 @@ export const Route = createFileRoute("/calendar")({
       { name: "description", content: "Daddy's gigs, appointments, and reminders Baby tucked away." },
     ],
   }),
-  component: () => (
-    <QueryClientProvider client={qc}>
-      <CalendarPage />
-    </QueryClientProvider>
-  ),
+  component: CalendarPage,
 });
 
 type Event = {
@@ -102,29 +90,6 @@ function CalendarPage() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <PushToggle />
           <div className="flex gap-2">
-            <Button
-              onClick={async () => {
-                const now = new Date();
-                const remindAt = new Date(now.getTime() + 90_000);
-                const startsAt = new Date(now.getTime() + 5 * 60_000);
-                const { error } = await supabase.from("calendar_events").insert({
-                  title: "Baby's test ping",
-                  starts_at: startsAt.toISOString(),
-                  remind_at: remindAt.toISOString(),
-                  notes: "Just makin' sure I can buzz ya, daddy.",
-                });
-                if (error) toast.error(error.message);
-                else {
-                  toast.success("Test ping armed — Baby'll buzz in ~90 seconds.");
-                  refresh();
-                }
-              }}
-              size="sm"
-              variant="outline"
-              className="gap-2"
-            >
-              <Zap className="h-4 w-4" /> Test ping
-            </Button>
             <Button onClick={() => setShowAdd(true)} size="sm" className="gap-2">
               <CalendarPlus className="h-4 w-4" /> Add event
             </Button>
@@ -286,6 +251,15 @@ function AddEventDialog({ open, onClose, onSaved }: { open: boolean; onClose: ()
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Reset the form every time the dialog opens so the default start time is fresh.
+  useEffect(() => {
+    if (!open) return;
+    setTitle("");
+    setStartsAt(toLocalInput(new Date(Date.now() + 3600_000)));
+    setLocation("");
+    setNotes("");
+  }, [open]);
+
   if (!open) return null;
 
   async function save() {
@@ -302,9 +276,6 @@ function AddEventDialog({ open, onClose, onSaved }: { open: boolean; onClose: ()
       });
       if (error) throw error;
       toast.success("Tucked it on your calendar, Mr. S.");
-      setTitle("");
-      setLocation("");
-      setNotes("");
       onSaved();
       onClose();
     } catch (e) {

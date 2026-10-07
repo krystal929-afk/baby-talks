@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Mic, Square, Loader2, Trash2, Sparkles, X, Plus, Send, CalendarDays, Brain, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useDictation } from "@/hooks/use-dictation";
 import { classifyIdea, growIdea, type DevPack } from "@/server/baby.functions";
+import { STATUS_META, STATUS_ORDER, type Status } from "@/lib/ideas";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,18 +18,9 @@ import { BabyChatButton, BabyChatDrawer } from "@/components/baby-chat";
 import { signOut } from "@/components/auth-gate";
 import logoPrimary from "@/assets/brand/logo-primary.png";
 
-// Local QueryClient — index page is the whole app, no other routes use it yet.
-const qc = new QueryClient();
-
 export const Route = createFileRoute("/")({
-  component: () => (
-    <QueryClientProvider client={qc}>
-      <BabyApp />
-    </QueryClientProvider>
-  ),
+  component: BabyApp,
 });
-
-type Status = "grow" | "rethink" | "trash" | "parking_lot";
 
 type Idea = {
   id: string;
@@ -40,38 +32,10 @@ type Idea = {
   updated_at: string;
 };
 
-const STATUS_META: Record<Status, { label: string; cls: string; chipCls: string; tagline: string }> = {
-  grow: {
-    label: "Grow",
-    cls: "border-grow/50 bg-grow/10",
-    chipCls: "bg-grow text-grow-foreground",
-    tagline: "Feed it, daddy",
-  },
-  rethink: {
-    label: "Rethink",
-    cls: "border-rethink/50 bg-rethink/10",
-    chipCls: "bg-rethink text-rethink-foreground",
-    tagline: "Still squirmin'",
-  },
-  parking_lot: {
-    label: "Parking Lot",
-    cls: "border-parking/50 bg-parking/10",
-    chipCls: "bg-parking text-parking-foreground",
-    tagline: "Tucked away",
-  },
-  trash: {
-    label: "Trash",
-    cls: "border-trash/50 bg-trash/10",
-    chipCls: "bg-trash text-trash-foreground",
-    tagline: "Burn it, boy",
-  },
-};
-
-const STATUS_ORDER: Status[] = ["grow", "rethink", "parking_lot", "trash"];
-
 function BabyApp() {
   const queryClient = useQueryClient();
-  const [openIdea, setOpenIdea] = useState<Idea | null>(null);
+  // Store only the id so the dialog always renders the freshest copy from the query.
+  const [openIdeaId, setOpenIdeaId] = useState<string | null>(null);
   const [topicFilter, setTopicFilter] = useState<string>("all");
   const [chatOpen, setChatOpen] = useState(false);
 
@@ -86,6 +50,8 @@ function BabyApp() {
       return (data ?? []) as unknown as Idea[];
     },
   });
+
+  const openIdea = useMemo(() => ideas.find((i) => i.id === openIdeaId) ?? null, [ideas, openIdeaId]);
 
   const topics = useMemo(() => {
     const s = new Set<string>();
@@ -133,7 +99,7 @@ function BabyApp() {
               const items = visible.filter((i) => i.status === s);
               if (items.length === 0) return null;
               return (
-                <Column key={s} status={s} ideas={items} onOpen={setOpenIdea} />
+                <Column key={s} status={s} ideas={items} onOpen={(i) => setOpenIdeaId(i.id)} />
               );
             })}
           </div>
@@ -144,10 +110,8 @@ function BabyApp() {
 
       <IdeaDetail
         idea={openIdea}
-        onClose={() => setOpenIdea(null)}
-        onChanged={() => {
-          refresh();
-        }}
+        onClose={() => setOpenIdeaId(null)}
+        onChanged={refresh}
       />
 
       <BabyChatButton onClick={() => setChatOpen(true)} />
@@ -486,27 +450,32 @@ function IdeaDetail({
   const [saving, setSaving] = useState(false);
   const [growing, setGrowing] = useState(false);
 
+  const ideaId = idea?.id;
+  const transcript = idea?.transcript;
   useEffect(() => {
-    if (idea) setEditText(idea.transcript);
-  }, [idea]);
+    if (transcript !== undefined) setEditText(transcript);
+  }, [ideaId, transcript]);
 
   if (!idea) return null;
 
-  async function update(patch: Partial<Idea>) {
+  /** Returns true when the update was saved. */
+  async function update(patch: Partial<Pick<Idea, "status" | "transcript">>): Promise<boolean> {
     setSaving(true);
     try {
       const { error } = await supabase.from("ideas").update(patch).eq("id", idea!.id);
       if (error) throw error;
       onChanged();
+      return true;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
+      return false;
     } finally {
       setSaving(false);
     }
   }
 
   async function changeStatus(newStatus: Status) {
-    await update({ status: newStatus });
+    if (!(await update({ status: newStatus }))) return;
     if (newStatus === "grow" && !idea!.dev_pack) {
       await handleGrow();
     } else {
@@ -542,7 +511,7 @@ function IdeaDetail({
   }
 
   async function handleSaveText() {
-    if (editText.trim() && editText !== idea!.transcript) {
+    if (editText.trim() && editText.trim() !== idea!.transcript) {
       await update({ transcript: editText.trim() });
     }
   }

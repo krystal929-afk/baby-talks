@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { subscribePush, unsubscribePush } from "@/lib/push.functions";
 import { VAPID_PUBLIC_KEY, urlBase64ToUint8Array } from "@/lib/push-config";
+import { getBrowserTimeZone } from "@/lib/timezone";
 
 type State = "unsupported" | "denied" | "off" | "on" | "loading";
 
@@ -57,6 +58,7 @@ export function PushToggle() {
           p256dh: json.keys.p256dh,
           auth: json.keys.auth,
           label: navigator.userAgent.slice(0, 100),
+          time_zone: getBrowserTimeZone(),
         },
       });
       setState("on");
@@ -81,6 +83,7 @@ export function PushToggle() {
       toast.success("Hush mode, daddy.");
     } catch (e) {
       console.error(e);
+      toast.error(e instanceof Error ? e.message : "Couldn't turn it off");
       setState("on");
     }
   }

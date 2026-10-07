@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { ReminderWatcher } from "@/components/reminder-watcher";
@@ -31,7 +33,7 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Baby's Killer Notepad — Mr. Satan" },
       { name: "description", content: "A dark, voice-driven AI notebook. Whisper your ideas, let Baby file them where they belong." },
       { name: "theme-color", content: "#000000" },
@@ -41,8 +43,8 @@ export const Route = createRootRoute({
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "Baby's Killer Notepad — Mr. Satan" },
       { name: "twitter:description", content: "A dark, voice-driven AI notebook. Whisper your ideas, let Baby file them where they belong." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/23ab8594-e838-4cb0-b838-9760d9790ed2/id-preview-58781ffc--f5e2848c-dddb-41e6-bf4b-35afc5966981.lovable.app-1778389952596.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/23ab8594-e838-4cb0-b838-9760d9790ed2/id-preview-58781ffc--f5e2848c-dddb-41e6-bf4b-35afc5966981.lovable.app-1778389952596.png" },
+      { property: "og:image", content: "/app-icon-512.png" },
+      { name: "twitter:image", content: "/app-icon-512.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -77,11 +79,15 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  // One QueryClient for the whole app so every route shares the same cache.
+  const [queryClient] = useState(() => new QueryClient());
   return (
-    <AuthGate>
-      <Outlet />
-      <ReminderWatcher />
-      <Toaster theme="dark" position="top-center" />
-    </AuthGate>
+    <QueryClientProvider client={queryClient}>
+      <AuthGate>
+        <Outlet />
+        <ReminderWatcher />
+        <Toaster theme="dark" position="top-center" />
+      </AuthGate>
+    </QueryClientProvider>
   );
 }

@@ -1,12 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  QueryClient,
-  QueryClientProvider,
-} from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Brain, Lightbulb, Loader2, Pencil, Save, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -16,8 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import logoPrimary from "@/assets/brand/logo-primary.png";
-
-const qc = new QueryClient();
+import { STATUS_META, STATUS_ORDER, type Status } from "@/lib/ideas";
+import {
+  deleteMemory,
+  listMemories,
+  MEMORIES_QUERY_KEY,
+  updateMemory,
+  type Memory,
+} from "@/server/memories.functions";
 
 export const Route = createFileRoute("/brain")({
   head: () => ({
@@ -26,26 +26,15 @@ export const Route = createFileRoute("/brain")({
       { name: "description", content: "Search, edit, and prune Baby's saved ideas and memories." },
     ],
   }),
-  component: () => (
-    <QueryClientProvider client={qc}>
-      <BrainPage />
-    </QueryClientProvider>
-  ),
+  component: BrainPage,
 });
 
 type Tab = "memories" | "ideas";
 
-type Memory = {
-  id: string;
-  content: string;
-  source: string;
-  created_at: string;
-};
-
 type IdeaRow = {
   id: string;
   transcript: string;
-  status: "grow" | "rethink" | "trash" | "parking_lot";
+  status: Status;
   topic: string;
   created_at: string;
 };
@@ -142,15 +131,8 @@ function TabButton({
 function MemoriesList({ q }: { q: string }) {
   const queryClient = useQueryClient();
   const { data = [], isLoading } = useQuery({
-    queryKey: ["baby_memories"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("baby_memories")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as Memory[];
-    },
+    queryKey: MEMORIES_QUERY_KEY,
+    queryFn: () => listMemories(),
   });
 
   const filtered = useMemo(() => {
@@ -159,7 +141,7 @@ function MemoriesList({ q }: { q: string }) {
     return data.filter((m) => m.content.toLowerCase().includes(needle));
   }, [data, q]);
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["baby_memories"] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: MEMORIES_QUERY_KEY });
 
   if (isLoading) return <Loading label="Riflin' through Baby's brain…" />;
   if (data.length === 0) {
@@ -197,21 +179,25 @@ function MemoryCard({ memory, onChanged }: { memory: Memory; onChanged: () => vo
       return;
     }
     setBusy(true);
-    const { error } = await supabase.from("baby_memories").update({ content: next }).eq("id", memory.id);
-    setBusy(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      await updateMemory({ data: { id: memory.id, content: next } });
+      setEditing(false);
+      onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't save that edit.");
+    } finally {
+      setBusy(false);
     }
-    setEditing(false);
-    onChanged();
   }
 
   async function del() {
     if (!confirm("Forget this fact?")) return;
-    const { error } = await supabase.from("baby_memories").delete().eq("id", memory.id);
-    if (error) toast.error(error.message);
-    else onChanged();
+    try {
+      await deleteMemory({ data: { id: memory.id } });
+      onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't forget that one.");
+    }
   }
 
   return (
@@ -262,23 +248,16 @@ function MemoryCard({ memory, onChanged }: { memory: Memory; onChanged: () => vo
 
 /* ───────────────────────────── Ideas ───────────────────────────── */
 
-const STATUS_LABEL: Record<IdeaRow["status"], string> = {
-  grow: "Grow",
-  rethink: "Rethink",
-  parking_lot: "Parking",
-  trash: "Trash",
-};
-
 function IdeasList({ q }: { q: string }) {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<IdeaRow["status"] | "all">("all");
 
   const { data = [], isLoading } = useQuery({
-    queryKey: ["ideas-brain"],
+    queryKey: ["ideas"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ideas")
-        .select("id, transcript, status, topic, created_at")
+        .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as IdeaRow[];
@@ -303,7 +282,7 @@ function IdeasList({ q }: { q: string }) {
     });
   }, [data, q, statusFilter, topicFilter]);
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["ideas-brain"] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["ideas"] });
 
   if (isLoading) return <Loading label="Diggin' through the box…" />;
   if (data.length === 0) {
@@ -314,9 +293,9 @@ function IdeasList({ q }: { q: string }) {
     <div className="space-y-3">
       <div className="flex flex-wrap gap-1.5">
         <Pill active={statusFilter === "all"} onClick={() => setStatusFilter("all")}>All status</Pill>
-        {(Object.keys(STATUS_LABEL) as IdeaRow["status"][]).map((s) => (
+        {STATUS_ORDER.map((s) => (
           <Pill key={s} active={statusFilter === s} onClick={() => setStatusFilter(s)}>
-            {STATUS_LABEL[s]}
+            {STATUS_META[s].label}
           </Pill>
         ))}
       </div>
@@ -400,7 +379,7 @@ function IdeaRowCard({ idea, onChanged }: { idea: IdeaRow; onChanged: () => void
     <div className="rounded-xl border border-border/60 bg-card/80 p-3">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className="rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-          {STATUS_LABEL[idea.status]}
+          {STATUS_META[idea.status].label}
         </span>
         <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
           {idea.topic}

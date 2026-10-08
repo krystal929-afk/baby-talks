@@ -1,20 +1,20 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getSupabaseAdmin } from "@/integrations/supabase/client.server";
 import { BUILT_IN_SKILLS } from "@/lib/baby-skills";
 import {
   DOCUMENT_FORMATS,
   generateAndStoreDocument,
   type GeneratedBabyDocument,
-} from "./document.functions";
+} from "./document-store.server";
 import { writeDocumentDraft } from "./document-writer";
 import {
   generateAndStoreImage,
   IMAGE_ASPECT_RATIOS,
   type GeneratedBabyImage,
   type ImageAspectRatio,
-} from "./image.functions";
+} from "./image-store.server";
 import { chatGateway, providerExtras, gatewayHeaders } from "./ai-gateway";
 
 const MAX_REQUEST_MESSAGES = 200;
@@ -207,9 +207,7 @@ export const chatWithBaby = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<ChatResult> => {
     const gw = chatGateway();
 
-    const supabaseUrl = process.env.SUPABASE_URL!;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    const supa = createClient(supabaseUrl, serviceKey);
+    const supa = getSupabaseAdmin();
 
     let threadMessages: ChatMsg[] = data.messages;
 
@@ -571,9 +569,17 @@ export const chatWithBaby = createServerFn({ method: "POST" })
               if (name === "remember") {
                 const fact = String(args.fact || "").trim();
                 if (fact) {
-                  await supa.from("baby_memories").insert({ owner_id: context.userId, content: fact, source: "auto" });
-                  savedMemory = fact;
-                  result = { ok: true };
+                  const { error } = await supa
+                    .from("baby_memories")
+                    .insert({ owner_id: context.userId, content: fact, source: "auto" });
+                  if (error) {
+                    result = { error: error.message };
+                  } else {
+                    savedMemory = fact;
+                    result = { ok: true };
+                  }
+                } else {
+                  result = { error: "fact required" };
                 }
               } else if (name === "save_idea") {
                 const transcript = String(args.transcript || "").trim();

@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { signedUrlsForImageRows } from "@/server/image.functions";
+import { getSupabaseAdmin } from "@/integrations/supabase/client.server";
+import { signedUrlsForImageRows } from "@/server/image-store.server";
 
 export type BabyConversation = {
   id: string;
@@ -30,22 +30,6 @@ export type SavedChatMessage = {
   images: SavedChatImage[];
 };
 
-function client() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !key) {
-    throw new Error("Missing Supabase server configuration");
-  }
-
-  return createClient(url, key, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-}
-
 function makeTitle(text: string) {
   const clean = text.replace(/\s+/g, " ").trim();
 
@@ -63,7 +47,7 @@ export const listConversations = createServerFn({
 })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<BabyConversation[]> => {
-    const { data, error } = await client()
+    const { data, error } = await getSupabaseAdmin()
       .from("baby_conversations")
       .select("id,title,created_at,updated_at")
       .eq("owner_id", context.userId)
@@ -89,7 +73,7 @@ export const loadConversation = createServerFn({
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const supabase = client();
+    const supabase = getSupabaseAdmin();
 
     const {
       data: conversation,
@@ -161,7 +145,7 @@ export const createConversation = createServerFn({
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const supabase = client();
+    const supabase = getSupabaseAdmin();
     const title = makeTitle(data.first_message);
 
     const {
@@ -220,7 +204,7 @@ export const appendConversationMessage = createServerFn({
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const supabase = client();
+    const supabase = getSupabaseAdmin();
 
     const {
       data: conversation,
@@ -293,7 +277,7 @@ export const renameConversation = createServerFn({
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<BabyConversation> => {
-    const { data: conversation, error } = await client()
+    const { data: conversation, error } = await getSupabaseAdmin()
       .from("baby_conversations")
       .update({
         title: data.title,
@@ -323,7 +307,7 @@ export const deleteConversation = createServerFn({
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const supabase = client();
+    const supabase = getSupabaseAdmin();
 
     const { data: images } = await supabase
       .from("baby_images")

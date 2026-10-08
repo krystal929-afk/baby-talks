@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getSupabaseAdmin } from "@/integrations/supabase/client.server";
 
 export type BabySkill = {
   id: string;
@@ -14,22 +14,6 @@ export type BabySkill = {
   updated_at: string;
 };
 
-function client() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !key) {
-    throw new Error("Missing Supabase server configuration");
-  }
-
-  return createClient(url, key, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-}
-
 const SkillFields = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().trim().max(240).default(""),
@@ -39,7 +23,7 @@ const SkillFields = z.object({
 export const listSkills = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<BabySkill[]> => {
-    const { data, error } = await client()
+    const { data, error } = await getSupabaseAdmin()
       .from("baby_skills")
       .select("id,name,description,instructions,enabled,created_at,updated_at")
       .eq("owner_id", context.userId)
@@ -54,7 +38,7 @@ export const createSkill = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => SkillFields.parse(input))
   .handler(async ({ data, context }): Promise<BabySkill> => {
-    const { data: skill, error } = await client()
+    const { data: skill, error } = await getSupabaseAdmin()
       .from("baby_skills")
       .insert({
         owner_id: context.userId,
@@ -100,7 +84,7 @@ export const updateSkill = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<BabySkill> => {
     const { id, ...patch } = data;
 
-    const { data: skill, error } = await client()
+    const { data: skill, error } = await getSupabaseAdmin()
       .from("baby_skills")
       .update(patch)
       .eq("id", id)
@@ -124,7 +108,7 @@ export const deleteSkill = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { error } = await client()
+    const { error } = await getSupabaseAdmin()
       .from("baby_skills")
       .delete()
       .eq("id", data.id)

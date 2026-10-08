@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/integrations/supabase/client.server";
 
 export const IMAGE_ASPECT_RATIOS = [
   "1:1",
@@ -48,22 +48,6 @@ const STRICT_PRESERVE_INSTRUCTION =
 
 const MR_SATAN_PRESERVE_HINT =
   "SUBJECT IDENTITY NOTE: If the referenced man is Daddy/Mr. Satan, he is a specific real person. Keep him recognizable. He is tall and slender with long hair, a large beard, and visible tattoos. Do not replace his face with a generic man or alter his distinctive features.";
-
-function serviceClient() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !key) {
-    throw new Error("Missing Supabase server configuration");
-  }
-
-  return createClient(url, key, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-}
 
 function extensionForMime(mimeType: string) {
   if (mimeType === "image/jpeg") return "jpg";
@@ -187,7 +171,7 @@ async function loadRecentReferenceImages({
   conversationId,
   limit,
 }: {
-  supabase: ReturnType<typeof serviceClient>;
+  supabase: ReturnType<typeof getSupabaseAdmin>;
   ownerId: string;
   conversationId: string;
   limit: number;
@@ -345,7 +329,7 @@ export async function generateAndStoreImage({
   const strictPreserve = isStrictPreserveEdit(cleanPrompt);
   const ratio = normalizeAspectRatio(aspectRatio);
   const model = process.env.IMAGE_AI_MODEL || DEFAULT_IMAGE_MODEL;
-  const supabase = serviceClient();
+  const supabase = getSupabaseAdmin();
 
   const { data: conversation, error: conversationError } = await supabase
     .from("baby_conversations")
@@ -450,7 +434,7 @@ export async function signedUrlsForImageRows(
 ) {
   if (!rows.length) return [];
 
-  const supabase = serviceClient();
+  const supabase = getSupabaseAdmin();
 
   return Promise.all(
     rows.map(async (row) => {

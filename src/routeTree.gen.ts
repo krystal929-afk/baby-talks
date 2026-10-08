@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BrainRouteImport } from './routes/brain'
 import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as DocumentsDocumentIdRouteImport } from './routes/documents.$documentId'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicHooksSendDueRemindersRouteImport } from './routes/api/public/hooks/send-due-reminders'
 
@@ -30,6 +31,11 @@ const CalendarRoute = CalendarRouteImport.update({
   path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocumentsDocumentIdRoute = DocumentsDocumentIdRouteImport.update({
+  id: '/documents/$documentId',
+  path: '/documents/$documentId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
   path: '/.lovable/oauth/consent',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/brain': typeof BrainRoute
   '/calendar': typeof CalendarRoute
+  '/documents/$documentId': typeof DocumentsDocumentIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/hooks/send-due-reminders': typeof ApiPublicHooksSendDueRemindersRoute
 }
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/brain': typeof BrainRoute
   '/calendar': typeof CalendarRoute
+  '/documents/$documentId': typeof DocumentsDocumentIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/hooks/send-due-reminders': typeof ApiPublicHooksSendDueRemindersRoute
 }
@@ -61,6 +69,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/brain': typeof BrainRoute
   '/calendar': typeof CalendarRoute
+  '/documents/$documentId': typeof DocumentsDocumentIdRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/hooks/send-due-reminders': typeof ApiPublicHooksSendDueRemindersRoute
 }
@@ -70,6 +79,7 @@ export interface FileRouteTypes {
     | '/'
     | '/brain'
     | '/calendar'
+    | '/documents/$documentId'
     | '/.lovable/oauth/consent'
     | '/api/public/hooks/send-due-reminders'
   fileRoutesByTo: FileRoutesByTo
@@ -77,6 +87,7 @@ export interface FileRouteTypes {
     | '/'
     | '/brain'
     | '/calendar'
+    | '/documents/$documentId'
     | '/.lovable/oauth/consent'
     | '/api/public/hooks/send-due-reminders'
   id:
@@ -84,6 +95,7 @@ export interface FileRouteTypes {
     | '/'
     | '/brain'
     | '/calendar'
+    | '/documents/$documentId'
     | '/.lovable/oauth/consent'
     | '/api/public/hooks/send-due-reminders'
   fileRoutesById: FileRoutesById
@@ -92,6 +104,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BrainRoute: typeof BrainRoute
   CalendarRoute: typeof CalendarRoute
+  DocumentsDocumentIdRoute: typeof DocumentsDocumentIdRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicHooksSendDueRemindersRoute: typeof ApiPublicHooksSendDueRemindersRoute
 }
@@ -119,6 +132,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/documents/$documentId': {
+      id: '/documents/$documentId'
+      path: '/documents/$documentId'
+      fullPath: '/documents/$documentId'
+      preLoaderRoute: typeof DocumentsDocumentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/.lovable/oauth/consent': {
       id: '/.lovable/oauth/consent'
       path: '/.lovable/oauth/consent'
@@ -140,6 +160,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BrainRoute: BrainRoute,
   CalendarRoute: CalendarRoute,
+  DocumentsDocumentIdRoute: DocumentsDocumentIdRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicHooksSendDueRemindersRoute: ApiPublicHooksSendDueRemindersRoute,
 }

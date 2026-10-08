@@ -16,19 +16,23 @@ import {
   type ImageAspectRatio,
 } from "./image-store.server";
 import { chatGateway, providerExtras, gatewayHeaders } from "./ai-gateway";
+import { currentOffset, describeNow, formatInTimeZone, resolveTimeZone, toUtcIso } from "@/lib/time";
 
 const MAX_REQUEST_MESSAGES = 200;
 const MAX_MODEL_HISTORY_MESSAGES = 36;
 
 const Msg = z.object({
   role: z.enum(["user", "assistant"]),
-  content: z.string().min(1).max(4000),
+  content: z.string().min(1).max(20_000),
 });
 
 const ChatInput = z.object({
   messages: z.array(Msg).min(1).max(MAX_REQUEST_MESSAGES),
-  context: z.string().max(2000).optional(),
+  // Screen context plus extracted attachment text (the client caps it at 14k).
+  context: z.string().max(16_000).optional(),
   conversation_id: z.string().uuid().optional(),
+  // The browser's IANA time zone; falls back to America/New_York.
+  timezone: z.string().max(64).optional(),
 });
 
 export type ChatMsg = z.infer<typeof Msg>;
@@ -84,7 +88,7 @@ Daddy can teach you reusable custom Skills. Enabled skill names and descriptions
 
 You can also look stuff up on the live web with the \`web_search\` tool — current prices, today's news, vendor info, anything you wouldn't already know. Use it when daddy asks something time-sensitive or factual you're not sure about. After searching, weave the answer into your reply in your own voice and end with a short "(sources: domain1, domain2)" so daddy can check. Don't search for opinions, banter, or stuff already in your brain.
 
-You can put things on daddy's calendar with \`schedule_event\` — gigs, meetings, appointments, reminders, anything with a time. Always pass an ISO 8601 timestamp for \`starts_at\` (assume daddy's local time if no timezone given). If daddy says "remind me tomorrow at 3 to call mom", schedule it and set \`remind_at\` to the same time. Use \`list_events\` to peek at what's coming up before answering schedule questions, or to avoid double-booking. After scheduling, confirm out loud ("Tucked it on your calendar, Mr. S — Friday 8pm.").`;
+You can put things on daddy's calendar with \`schedule_event\` — gigs, meetings, appointments, reminders, anything with a time. Always pass an ISO 8601 timestamp for \`starts_at\` in daddy's local time zone (given below under "Right now"), including the UTC offset. If daddy says "remind me tomorrow at 3 to call mom", schedule it and set \`remind_at\` to the same time. Use \`list_events\` to peek at what's coming up before answering schedule questions, or to avoid double-booking. After scheduling, confirm out loud ("Tucked it on your calendar, Mr. S — Friday 8pm.").`;
 
 async function tavilySearch(query: string): Promise<{ answer: string; sources: { title: string; url: string }[] }> {
   const key = process.env.TAVILY_API_KEY;
@@ -350,7 +354,9 @@ export const chatWithBaby = createServerFn({ method: "POST" })
       ? `\n\n--- What's on daddy's screen right now ---\n${data.context}\n--- end ---`
       : "";
 
-    const nowBlock = `\n\n--- Right now ---\nCurrent time: ${new Date().toISOString()} (UTC). When daddy says relative times like "tomorrow at 3" assume his local time and convert to ISO.\n--- end ---`;
+    const timeZone = resolveTimeZone(data.timezone);
+    const offset = currentOffset(timeZone);
+    const nowBlock = `\n\n--- Right now ---\nDaddy's local time: ${describeNow(timeZone)}.\nWhen daddy says relative times like "tomorrow at 3", work them out in ${timeZone} and pass ISO 8601 with his offset, e.g. 2026-01-02T15:00:00${offset}. Calendar results from list_events include \`starts_local\`; say times to daddy in his local time, never UTC.\n--- end ---`;
 
     const systemPrompt = BABY_CHAT_PROMPT + memoryBlock + builtInSkillsBlock + skillsBlock + speakerBlock + contextBlock + nowBlock;
 
@@ -487,12 +493,12 @@ export const chatWithBaby = createServerFn({ method: "POST" })
             type: "object",
             properties: {
               title: { type: "string", description: "Short title, e.g. 'Call Mom' or 'Studio session'." },
-              starts_at: { type: "string", description: "ISO 8601 timestamp for when it starts." },
-              ends_at: { type: "string", description: "Optional ISO 8601 end time." },
+              starts_at: { type: "string", description: "ISO 8601 start time in daddy's local zone, with UTC offset." },
+              ends_at: { type: "string", description: "Optional ISO 8601 end time (local, with offset)." },
               all_day: { type: "boolean", description: "True for all-day events." },
               location: { type: "string", description: "Optional location." },
               notes: { type: "string", description: "Optional details." },
-              remind_at: { type: "string", description: "Optional ISO 8601 — when to ping daddy. Defaults to starts_at." },
+              remind_at: { type: "string", description: "Optional ISO 8601 (local, with offset) — when to ping daddy. Defaults to starts_at." },
             },
             required: ["title", "starts_at"],
             additionalProperties: false,
@@ -677,28 +683,42 @@ export const chatWithBaby = createServerFn({ method: "POST" })
                   result = { answer: r.answer, sources: r.sources };
                 }
               } else if (name === "schedule_event") {
-                const title = String(args.title || "").trim();
-                const starts_at = String(args.starts_at || "").trim();
-                if (title && starts_at) {
-                  const { data: row, error } = await supa.from("calendar_events").insert({
-                    owner_id: context.userId,
-                    title,
-                    starts_at,
-                    ends_at: args.ends_at || null,
-                    all_day: !!args.all_day,
-                    location: args.location || null,
-                    notes: args.notes || null,
-                    remind_at: args.remind_at || starts_at,
-                  }).select("id, title, starts_at").single();
-                  if (error) result = { error: error.message };
-                  else result = { ok: true, event: row };
-                } else {
+                const title = String(args.title || "").trim().slice(0, 200);
+                // Timestamps without an offset are daddy's wall-clock time,
+                // not UTC (Postgres would otherwise read them as UTC).
+                const starts_at = toUtcIso(args.starts_at, timeZone);
+                const ends_at = args.ends_at ? toUtcIso(args.ends_at, timeZone) : null;
+                const remind_at = args.remind_at ? toUtcIso(args.remind_at, timeZone) : starts_at;
+                if (!title || !args.starts_at) {
                   result = { error: "title and starts_at required" };
+                } else if (!starts_at || (args.ends_at && !ends_at) || (args.remind_at && !remind_at)) {
+                  result = { error: "Use ISO 8601 timestamps like 2026-01-02T15:00:00" + offset };
+                } else {
+                  const { data: row, error } = await supa
+                    .from("calendar_events")
+                    .insert({
+                      owner_id: context.userId,
+                      title,
+                      starts_at,
+                      ends_at,
+                      all_day: !!args.all_day,
+                      location: args.location ? String(args.location).slice(0, 300) : null,
+                      notes: args.notes ? String(args.notes).slice(0, 2000) : null,
+                      remind_at,
+                    })
+                    .select("id, title, starts_at")
+                    .single();
+                  if (error) result = { error: error.message };
+                  else
+                    result = {
+                      ok: true,
+                      event: { ...row, starts_local: formatInTimeZone(row.starts_at, timeZone) },
+                    };
                 }
               } else if (name === "list_events") {
                 const days = Math.min(90, Math.max(1, Number(args.days_ahead) || 14));
                 const until = new Date(Date.now() + days * 86400000).toISOString();
-                const { data: rows } = await supa
+                const { data: rows, error } = await supa
                   .from("calendar_events")
                   .select("id, title, starts_at, ends_at, location, notes")
                   .eq("owner_id", context.userId)
@@ -706,7 +726,15 @@ export const chatWithBaby = createServerFn({ method: "POST" })
                   .lte("starts_at", until)
                   .order("starts_at", { ascending: true })
                   .limit(40);
-                result = { events: rows ?? [] };
+                if (error) throw new Error(error.message);
+                result = {
+                  time_zone: timeZone,
+                  events: (rows ?? []).map((row) => ({
+                    ...row,
+                    starts_local: formatInTimeZone(row.starts_at, timeZone),
+                    ends_local: row.ends_at ? formatInTimeZone(row.ends_at, timeZone) : null,
+                  })),
+                };
               }
             } catch (e) {
               console.error(`tool ${name} error`, e);

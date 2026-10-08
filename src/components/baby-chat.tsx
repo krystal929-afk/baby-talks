@@ -53,6 +53,7 @@ import {
   type BabyConversation,
 } from "@/server/conversations.functions";
 import { describeBabyUploads, type BabyUpload } from "@/server/upload.functions";
+import { browserTimeZone } from "@/lib/time";
 
 const ACTIVE_CONVERSATION_KEY = "baby-active-conversation-id";
 const VOICE_DRAFT_EVENT = "baby:voice-draft";
@@ -472,6 +473,7 @@ function ChatPane({
           messages: next.slice(-200).map(({ role, content }) => ({ role, content })),
           context: combinedContext || undefined,
           conversation_id: activeConversationId,
+          timezone: browserTimeZone(),
         },
       });
 

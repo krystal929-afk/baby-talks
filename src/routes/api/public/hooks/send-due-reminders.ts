@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import webpush from "web-push";
 import { getSupabaseAdmin } from "@/integrations/supabase/client.server";
 import { VAPID_PUBLIC_KEY, VAPID_SUBJECT } from "@/lib/push-config";
+import { formatInTimeZone, resolveTimeZone } from "@/lib/time";
 
 const BABY_LINES = [
   "Hey daddy — clock's ticking on:",
@@ -41,6 +42,7 @@ async function run(request: Request) {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, priv);
 
   const supabaseAdmin = getSupabaseAdmin();
+  const timeZone = resolveTimeZone();
   const nowIso = new Date().toISOString();
   const { data: events, error } = await supabaseAdmin
     .from("calendar_events")
@@ -80,13 +82,8 @@ async function run(request: Request) {
     const ownerSubs = (subs ?? []).filter((s) => s.owner_id === ev.owner_id);
     if (ownerSubs.length > 0) {
       const line = BABY_LINES[Math.floor(Math.random() * BABY_LINES.length)];
-      const startsTxt = new Date(ev.starts_at).toLocaleString(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      });
+      // Workers run in UTC; format in the owner's zone (APP_TIME_ZONE or New York).
+      const startsTxt = formatInTimeZone(ev.starts_at, timeZone);
       const payload = JSON.stringify({
         title: ev.title,
         body: `${line} ${startsTxt}${ev.location ? " @ " + ev.location : ""}`,

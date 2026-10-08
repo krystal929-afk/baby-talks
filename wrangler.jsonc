@@ -13,8 +13,7 @@
     "SUPABASE_URL": "https://jtymnvlzbabobroabzlf.supabase.co",
     "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_lE--DJbQlU1J7A42U8vi3A_gTAr8wUW",
     "CHAT_AI_MODEL": "openrouter/free",
-    "AZURE_SPEECH_REGION": "eastus",
-    "AZURE_SPEECH_ENDPOINT": "https://eastus.api.cognitive.microsoft.com/"
+    "AZURE_SPEECH_REGION": "eastus"
   },
 
   "secrets": {

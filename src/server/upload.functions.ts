@@ -32,10 +32,6 @@ const UploadInput = z.object({
   base64: z.string().min(1).max(15_000_000),
 });
 
-const ListInput = z.object({
-  conversation_id: z.string().uuid(),
-});
-
 const DescribeInput = z.object({
   conversation_id: z.string().uuid(),
   upload_ids: z.array(z.string().uuid()).min(1).max(4),
@@ -198,43 +194,6 @@ export const uploadToBaby = createServerFn({ method: "POST" })
       }
       throw error;
     }
-  });
-
-export const listConversationUploads = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => ListInput.parse(d))
-  .handler(async ({ data, context }): Promise<BabyUpload[]> => {
-    const supabase = getSupabaseAdmin();
-    const { data: rows, error } = await supabase
-      .from("baby_uploads")
-      .select("id,conversation_id,filename,storage_path,mime_type,size_bytes,kind,created_at")
-      .eq("owner_id", context.userId)
-      .eq("conversation_id", data.conversation_id)
-      .order("created_at", { ascending: true });
-
-    if (error) throw new Error(`Couldn't load uploads: ${error.message}`);
-
-    const items = await Promise.all(
-      (rows ?? []).map(async (row) => {
-        const { data: signed } = await supabase.storage
-          .from(UPLOAD_BUCKET)
-          .createSignedUrl(row.storage_path, 60 * 60);
-        if (!signed?.signedUrl) return null;
-
-        return {
-          id: row.id,
-          conversation_id: row.conversation_id,
-          filename: row.filename,
-          mime_type: row.mime_type,
-          size_bytes: Number(row.size_bytes),
-          kind: row.kind as "image" | "file",
-          url: signed.signedUrl,
-          created_at: row.created_at,
-        } satisfies BabyUpload;
-      }),
-    );
-
-    return items.filter((item): item is BabyUpload => item !== null);
   });
 
 export const describeBabyUploads = createServerFn({ method: "POST" })

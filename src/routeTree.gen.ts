@@ -13,7 +13,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as BrainRouteImport } from './routes/brain'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as DocumentsDocumentIdRouteImport } from './routes/documents.$documentId'
-import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicHooksSendDueRemindersRouteImport } from './routes/api/public/hooks/send-due-reminders'
 
 const IndexRoute = IndexRouteImport.update({
@@ -36,11 +35,6 @@ const DocumentsDocumentIdRoute = DocumentsDocumentIdRouteImport.update({
   path: '/documents/$documentId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
-  id: '/.lovable/oauth/consent',
-  path: '/.lovable/oauth/consent',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicHooksSendDueRemindersRoute =
   ApiPublicHooksSendDueRemindersRouteImport.update({
     id: '/api/public/hooks/send-due-reminders',
@@ -53,7 +47,6 @@ export interface FileRoutesByFullPath {
   '/brain': typeof BrainRoute
   '/calendar': typeof CalendarRoute
   '/documents/$documentId': typeof DocumentsDocumentIdRoute
-  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/hooks/send-due-reminders': typeof ApiPublicHooksSendDueRemindersRoute
 }
 export interface FileRoutesByTo {
@@ -61,7 +54,6 @@ export interface FileRoutesByTo {
   '/brain': typeof BrainRoute
   '/calendar': typeof CalendarRoute
   '/documents/$documentId': typeof DocumentsDocumentIdRoute
-  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/hooks/send-due-reminders': typeof ApiPublicHooksSendDueRemindersRoute
 }
 export interface FileRoutesById {
@@ -70,7 +62,6 @@ export interface FileRoutesById {
   '/brain': typeof BrainRoute
   '/calendar': typeof CalendarRoute
   '/documents/$documentId': typeof DocumentsDocumentIdRoute
-  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/hooks/send-due-reminders': typeof ApiPublicHooksSendDueRemindersRoute
 }
 export interface FileRouteTypes {
@@ -80,7 +71,6 @@ export interface FileRouteTypes {
     | '/brain'
     | '/calendar'
     | '/documents/$documentId'
-    | '/.lovable/oauth/consent'
     | '/api/public/hooks/send-due-reminders'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -88,7 +78,6 @@ export interface FileRouteTypes {
     | '/brain'
     | '/calendar'
     | '/documents/$documentId'
-    | '/.lovable/oauth/consent'
     | '/api/public/hooks/send-due-reminders'
   id:
     | '__root__'
@@ -96,7 +85,6 @@ export interface FileRouteTypes {
     | '/brain'
     | '/calendar'
     | '/documents/$documentId'
-    | '/.lovable/oauth/consent'
     | '/api/public/hooks/send-due-reminders'
   fileRoutesById: FileRoutesById
 }
@@ -105,7 +93,6 @@ export interface RootRouteChildren {
   BrainRoute: typeof BrainRoute
   CalendarRoute: typeof CalendarRoute
   DocumentsDocumentIdRoute: typeof DocumentsDocumentIdRoute
-  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicHooksSendDueRemindersRoute: typeof ApiPublicHooksSendDueRemindersRoute
 }
 
@@ -139,13 +126,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocumentsDocumentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/.lovable/oauth/consent': {
-      id: '/.lovable/oauth/consent'
-      path: '/.lovable/oauth/consent'
-      fullPath: '/.lovable/oauth/consent'
-      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/hooks/send-due-reminders': {
       id: '/api/public/hooks/send-due-reminders'
       path: '/api/public/hooks/send-due-reminders'
@@ -161,7 +141,6 @@ const rootRouteChildren: RootRouteChildren = {
   BrainRoute: BrainRoute,
   CalendarRoute: CalendarRoute,
   DocumentsDocumentIdRoute: DocumentsDocumentIdRoute,
-  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicHooksSendDueRemindersRoute: ApiPublicHooksSendDueRemindersRoute,
 }
 export const routeTree = rootRouteImport

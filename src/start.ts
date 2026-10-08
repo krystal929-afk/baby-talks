@@ -1,23 +1,20 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 // Forward the current Supabase session access token as a Bearer header on
 // every server function call so requireSupabaseAuth can validate it.
-const attachAuthHeader = createMiddleware({ type: "function" }).client(
-  async ({ next }) => {
-    let headers: Record<string, string> = {};
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (token) headers = { Authorization: `Bearer ${token}` };
-    } catch {
-      // no session — let server-side middleware reject if required
-    }
-    return next({ headers });
-  },
-);
+const attachAuthHeader = createMiddleware({ type: "function" }).client(async ({ next }) => {
+  let headers: Record<string, string> = {};
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (token) headers = { Authorization: `Bearer ${token}` };
+  } catch {
+    // no session — let server-side middleware reject if required
+  }
+  return next({ headers });
+});
 
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth, attachAuthHeader],
+  functionMiddleware: [attachAuthHeader],
 }));

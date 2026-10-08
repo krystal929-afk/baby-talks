@@ -8,6 +8,12 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+
+# Local env files (never commit real keys)
+.env
+.env.*
+!.env.example
+
 dist
 dist-ssr
 .output
@@ -30,3 +36,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Only npm is used; keep a single lockfile
+bun.lock
+bun.lockb
+pnpm-lock.yaml
+yarn.lock

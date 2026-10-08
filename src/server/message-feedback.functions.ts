@@ -1,27 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-function client() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !key) {
-    throw new Error("Missing Supabase server configuration");
-  }
-
-  return createClient(url, key, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-}
+import { getSupabaseAdmin } from "@/integrations/supabase/client.server";
 
 const FeedbackInput = z.object({
-  content: z.string().min(1).max(4000),
+  content: z.string().min(1).max(20_000),
   feedback: z.enum(["up", "down"]).nullable(),
 });
 
@@ -33,7 +17,7 @@ export const rateBabyResponse = createServerFn({
     FeedbackInput.parse(input),
   )
   .handler(async ({ data, context }) => {
-    const supabase = client();
+    const supabase = getSupabaseAdmin();
 
     const {
       data: message,

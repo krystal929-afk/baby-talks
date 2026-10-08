@@ -12,7 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BrainRouteImport } from './routes/brain'
 import { Route as CalendarRouteImport } from './routes/calendar'
-import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as DocumentsDocumentIdRouteImport } from './routes/documents.$documentId'
 import { Route as ApiPublicHooksSendDueRemindersRouteImport } from './routes/api/public/hooks/send-due-reminders'
 
 const IndexRoute = IndexRouteImport.update({
@@ -30,9 +30,9 @@ const CalendarRoute = CalendarRouteImport.update({
   path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
-  id: '/.lovable/oauth/consent',
-  path: '/.lovable/oauth/consent',
+const DocumentsDocumentIdRoute = DocumentsDocumentIdRouteImport.update({
+  id: '/documents/$documentId',
+  path: '/documents/$documentId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicHooksSendDueRemindersRoute =
@@ -46,14 +46,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/brain': typeof BrainRoute
   '/calendar': typeof CalendarRoute
-  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/documents/$documentId': typeof DocumentsDocumentIdRoute
   '/api/public/hooks/send-due-reminders': typeof ApiPublicHooksSendDueRemindersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/brain': typeof BrainRoute
   '/calendar': typeof CalendarRoute
-  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/documents/$documentId': typeof DocumentsDocumentIdRoute
   '/api/public/hooks/send-due-reminders': typeof ApiPublicHooksSendDueRemindersRoute
 }
 export interface FileRoutesById {
@@ -61,7 +61,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/brain': typeof BrainRoute
   '/calendar': typeof CalendarRoute
-  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/documents/$documentId': typeof DocumentsDocumentIdRoute
   '/api/public/hooks/send-due-reminders': typeof ApiPublicHooksSendDueRemindersRoute
 }
 export interface FileRouteTypes {
@@ -70,21 +70,21 @@ export interface FileRouteTypes {
     | '/'
     | '/brain'
     | '/calendar'
-    | '/.lovable/oauth/consent'
+    | '/documents/$documentId'
     | '/api/public/hooks/send-due-reminders'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/brain'
     | '/calendar'
-    | '/.lovable/oauth/consent'
+    | '/documents/$documentId'
     | '/api/public/hooks/send-due-reminders'
   id:
     | '__root__'
     | '/'
     | '/brain'
     | '/calendar'
-    | '/.lovable/oauth/consent'
+    | '/documents/$documentId'
     | '/api/public/hooks/send-due-reminders'
   fileRoutesById: FileRoutesById
 }
@@ -92,7 +92,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BrainRoute: typeof BrainRoute
   CalendarRoute: typeof CalendarRoute
-  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  DocumentsDocumentIdRoute: typeof DocumentsDocumentIdRoute
   ApiPublicHooksSendDueRemindersRoute: typeof ApiPublicHooksSendDueRemindersRoute
 }
 
@@ -119,11 +119,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/.lovable/oauth/consent': {
-      id: '/.lovable/oauth/consent'
-      path: '/.lovable/oauth/consent'
-      fullPath: '/.lovable/oauth/consent'
-      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+    '/documents/$documentId': {
+      id: '/documents/$documentId'
+      path: '/documents/$documentId'
+      fullPath: '/documents/$documentId'
+      preLoaderRoute: typeof DocumentsDocumentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/send-due-reminders': {
@@ -140,7 +140,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BrainRoute: BrainRoute,
   CalendarRoute: CalendarRoute,
-  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  DocumentsDocumentIdRoute: DocumentsDocumentIdRoute,
   ApiPublicHooksSendDueRemindersRoute: ApiPublicHooksSendDueRemindersRoute,
 }
 export const routeTree = rootRouteImport

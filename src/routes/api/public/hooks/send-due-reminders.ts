@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import webpush from "web-push";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getSupabaseAdmin } from "@/integrations/supabase/client.server";
 import { VAPID_PUBLIC_KEY, VAPID_SUBJECT } from "@/lib/push-config";
+import { formatInTimeZone, resolveTimeZone } from "@/lib/time";
 
 const BABY_LINES = [
   "Hey daddy — clock's ticking on:",
@@ -11,11 +12,20 @@ const BABY_LINES = [
   "Baby's reminding ya:",
 ];
 
+function secretsMatch(provided: string | null, expected: string | undefined) {
+  if (!expected || !provided) return false;
+  const a = new TextEncoder().encode(provided);
+  const b = new TextEncoder().encode(expected);
+  if (a.length !== b.length) return false;
+  // Constant-time compare so the secret can't be guessed byte-by-byte.
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
+
 async function run(request: Request) {
   // Auth: require shared secret header so randos can't trigger pushes / mark events reminded
-  const expected = process.env.CRON_SECRET;
-  const provided = request.headers.get("x-cron-secret");
-  if (!expected || provided !== expected) {
+  if (!secretsMatch(request.headers.get("x-cron-secret"), process.env.CRON_SECRET)) {
     return new Response(JSON.stringify({ error: "unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
@@ -31,10 +41,12 @@ async function run(request: Request) {
   }
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, priv);
 
+  const supabaseAdmin = getSupabaseAdmin();
+  const timeZone = resolveTimeZone();
   const nowIso = new Date().toISOString();
   const { data: events, error } = await supabaseAdmin
     .from("calendar_events")
-    .select("*")
+    .select("id,owner_id,title,starts_at,location")
     .eq("reminded", false)
     .not("remind_at", "is", null)
     .lte("remind_at", nowIso)
@@ -52,20 +64,26 @@ async function run(request: Request) {
     });
   }
 
-  const { data: subs } = await supabaseAdmin.from("push_subscriptions").select("*");
+  // Only load subscriptions for the people who actually have something due.
+  const ownerIds = Array.from(new Set(events.map((ev) => ev.owner_id)));
+  const { data: subs, error: subsError } = await supabaseAdmin
+    .from("push_subscriptions")
+    .select("owner_id,endpoint,p256dh,auth")
+    .in("owner_id", ownerIds);
+  if (subsError) {
+    return new Response(JSON.stringify({ error: subsError.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
   let pushed = 0;
 
   for (const ev of events) {
     const ownerSubs = (subs ?? []).filter((s) => s.owner_id === ev.owner_id);
     if (ownerSubs.length > 0) {
       const line = BABY_LINES[Math.floor(Math.random() * BABY_LINES.length)];
-      const startsTxt = new Date(ev.starts_at).toLocaleString(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      });
+      // Workers run in UTC; format in the owner's zone (APP_TIME_ZONE or New York).
+      const startsTxt = formatInTimeZone(ev.starts_at, timeZone);
       const payload = JSON.stringify({
         title: ev.title,
         body: `${line} ${startsTxt}${ev.location ? " @ " + ev.location : ""}`,
@@ -93,7 +111,8 @@ async function run(request: Request) {
     await supabaseAdmin
       .from("calendar_events")
       .update({ reminded: true })
-      .eq("id", ev.id);
+      .eq("id", ev.id)
+      .eq("owner_id", ev.owner_id);
   }
 
   return new Response(JSON.stringify({ ok: true, processed: events.length, pushed }), {

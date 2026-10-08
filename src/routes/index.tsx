@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Brain,
   CalendarDays,
@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useDictation } from "@/hooks/use-dictation";
 import { growIdea, type DevPack } from "@/server/baby.functions";
+import { IDEAS_KEY, ideasQuery, type Idea, type IdeaStatus } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,28 +30,12 @@ import { BabyAppNav } from "@/components/baby-app-nav";
 import { signOut } from "@/components/auth-gate";
 import babyPhoto from "@/assets/brand/baby-firefly.jpg";
 
-const qc = new QueryClient();
-
 export const Route = createFileRoute("/")({
-  component: () => (
-    <QueryClientProvider client={qc}>
-      <BabyApp />
-    </QueryClientProvider>
-  ),
+  component: BabyApp,
 });
 
-type Status = "grow" | "rethink" | "trash" | "parking_lot";
+type Status = IdeaStatus;
 type PanelTab = "chat" | "skills";
-
-type Idea = {
-  id: string;
-  transcript: string;
-  status: Status;
-  topic: string;
-  dev_pack: DevPack | null;
-  created_at: string;
-  updated_at: string;
-};
 
 const STATUS_META: Record<Status, { label: string; cls: string; chipCls: string; tagline: string }> = {
   grow: { label: "Grow", cls: "border-grow/50 bg-grow/10", chipCls: "bg-grow text-grow-foreground", tagline: "Feed it, daddy" },
@@ -63,7 +48,9 @@ const STATUS_ORDER: Status[] = ["grow", "rethink", "parking_lot", "trash"];
 
 function BabyApp() {
   const queryClient = useQueryClient();
-  const [openIdea, setOpenIdea] = useState<Idea | null>(null);
+  // Keep only the id so the popup always shows the latest copy from the cache
+  // (it used to show stale status/plan after a change or Grow).
+  const [openIdeaId, setOpenIdeaId] = useState<string | null>(null);
   const [topicFilter, setTopicFilter] = useState("all");
   const [chatOpen, setChatOpen] = useState(false);
   const [chatTab, setChatTab] = useState<PanelTab>("chat");
@@ -80,14 +67,9 @@ function BabyApp() {
     }
   }, []);
 
-  const { data: ideas = [], isLoading } = useQuery({
-    queryKey: ["ideas"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("ideas").select("*").order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as unknown as Idea[];
-    },
-  });
+  const { data: ideas = [], isLoading } = useQuery(ideasQuery);
+  const openIdea = useMemo(() => ideas.find((idea) => idea.id === openIdeaId) ?? null, [ideas, openIdeaId]);
+  const setOpenIdea = (idea: Idea | null) => setOpenIdeaId(idea?.id ?? null);
 
   const topics = useMemo(() => {
     const set = new Set<string>();
@@ -100,7 +82,7 @@ function BabyApp() {
     [ideas, topicFilter],
   );
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["ideas"] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: IDEAS_KEY });
   const openPanel = (tab: PanelTab) => {
     setChatTab(tab);
     setChatOpen(true);
@@ -356,24 +338,27 @@ function IdeaDetail({ idea, onClose, onChanged }: { idea: Idea | null; onClose: 
   const [saving, setSaving] = useState(false);
   const [growing, setGrowing] = useState(false);
 
-  useEffect(() => { if (idea) setEditText(idea.transcript); }, [idea]);
+  useEffect(() => { if (idea) setEditText(idea.transcript); }, [idea?.id, idea?.transcript]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!idea) return null;
 
-  async function update(patch: Partial<Idea>) {
+  async function update(patch: Partial<Idea>): Promise<boolean> {
     setSaving(true);
     try {
       const { error } = await supabase.from("ideas").update(patch).eq("id", idea!.id);
       if (error) throw error;
       onChanged();
+      return true;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Save failed");
+      return false;
     } finally {
       setSaving(false);
     }
   }
 
   async function changeStatus(newStatus: Status) {
-    await update({ status: newStatus });
+    const saved = await update({ status: newStatus });
+    if (!saved) return; // don't build a plan for a status that didn't save
     if (newStatus === "grow" && !idea!.dev_pack) await handleGrow();
     else onClose();
   }
@@ -401,7 +386,8 @@ function IdeaDetail({ idea, onClose, onChanged }: { idea: Idea | null; onClose: 
   }
 
   async function handleSaveText() {
-    if (editText.trim() && editText !== idea!.transcript) await update({ transcript: editText.trim() });
+    const next = editText.trim();
+    if (next && next !== idea!.transcript) await update({ transcript: next });
   }
 
   const meta = STATUS_META[idea.status];

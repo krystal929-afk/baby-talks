@@ -1,9 +1,9 @@
 import { env } from "cloudflare:workers";
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getSupabaseAdmin } from "@/integrations/supabase/client.server";
 
 const UPLOAD_BUCKET = "baby-uploads";
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -30,10 +30,6 @@ const UploadInput = z.object({
   filename: z.string().min(1).max(180),
   mime_type: z.string().min(1).max(120),
   base64: z.string().min(1).max(15_000_000),
-});
-
-const ListInput = z.object({
-  conversation_id: z.string().uuid(),
 });
 
 const DescribeInput = z.object({
@@ -68,23 +64,6 @@ type MarkdownAiBinding = {
   ) => Promise<ConversionResult | ConversionResult[]>;
 };
 
-function serviceClient() {
-  const workerEnv = env as unknown as Record<string, unknown>;
-  const url =
-    (typeof workerEnv.SUPABASE_URL === "string" && workerEnv.SUPABASE_URL) ||
-    process.env.SUPABASE_URL;
-  const key =
-    (typeof workerEnv.SUPABASE_SERVICE_ROLE_KEY === "string" &&
-      workerEnv.SUPABASE_SERVICE_ROLE_KEY) ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !key) throw new Error("Missing Supabase server configuration");
-
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
 function safeFilename(value: string) {
   const trimmed = value.trim().replace(/\s+/g, " ");
   const clean = trimmed.replace(/[^a-zA-Z0-9._ -]/g, "").slice(0, 120);
@@ -96,7 +75,7 @@ function kindForMime(mimeType: string): "image" | "file" {
 }
 
 async function getOrCreateConversation(
-  supabase: ReturnType<typeof serviceClient>,
+  supabase: ReturnType<typeof getSupabaseAdmin>,
   ownerId: string,
   requestedId?: string,
 ) {
@@ -145,7 +124,7 @@ export const uploadToBaby = createServerFn({ method: "POST" })
       throw new Error("That file is over Baby's 10 MB upload limit.");
     }
 
-    const supabase = serviceClient();
+    const supabase = getSupabaseAdmin();
     const conversation = await getOrCreateConversation(
       supabase,
       context.userId,
@@ -217,48 +196,11 @@ export const uploadToBaby = createServerFn({ method: "POST" })
     }
   });
 
-export const listConversationUploads = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => ListInput.parse(d))
-  .handler(async ({ data, context }): Promise<BabyUpload[]> => {
-    const supabase = serviceClient();
-    const { data: rows, error } = await supabase
-      .from("baby_uploads")
-      .select("id,conversation_id,filename,storage_path,mime_type,size_bytes,kind,created_at")
-      .eq("owner_id", context.userId)
-      .eq("conversation_id", data.conversation_id)
-      .order("created_at", { ascending: true });
-
-    if (error) throw new Error(`Couldn't load uploads: ${error.message}`);
-
-    const items = await Promise.all(
-      (rows ?? []).map(async (row) => {
-        const { data: signed } = await supabase.storage
-          .from(UPLOAD_BUCKET)
-          .createSignedUrl(row.storage_path, 60 * 60);
-        if (!signed?.signedUrl) return null;
-
-        return {
-          id: row.id,
-          conversation_id: row.conversation_id,
-          filename: row.filename,
-          mime_type: row.mime_type,
-          size_bytes: Number(row.size_bytes),
-          kind: row.kind as "image" | "file",
-          url: signed.signedUrl,
-          created_at: row.created_at,
-        } satisfies BabyUpload;
-      }),
-    );
-
-    return items.filter((item): item is BabyUpload => item !== null);
-  });
-
 export const describeBabyUploads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => DescribeInput.parse(d))
   .handler(async ({ data, context }) => {
-    const supabase = serviceClient();
+    const supabase = getSupabaseAdmin();
     const { data: rows, error } = await supabase
       .from("baby_uploads")
       .select("id,filename,storage_path,mime_type")

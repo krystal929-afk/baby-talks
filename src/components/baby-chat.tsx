@@ -39,7 +39,6 @@ import { chatWithBaby, type ChatMsg } from "@/server/chat.functions";
 import {
   addMemory,
   deleteMemory,
-  listMemories,
   updateMemory,
   type Memory,
 } from "@/server/memories.functions";
@@ -53,6 +52,8 @@ import {
   type BabyConversation,
 } from "@/server/conversations.functions";
 import { describeBabyUploads, type BabyUpload } from "@/server/upload.functions";
+import { browserTimeZone } from "@/lib/time";
+import { EVENTS_KEY, IDEAS_KEY, MEMORIES_KEY, memoriesQuery } from "@/lib/queries";
 
 const ACTIVE_CONVERSATION_KEY = "baby-active-conversation-id";
 const VOICE_DRAFT_EVENT = "baby:voice-draft";
@@ -472,6 +473,7 @@ function ChatPane({
           messages: next.slice(-200).map(({ role, content }) => ({ role, content })),
           context: combinedContext || undefined,
           conversation_id: activeConversationId,
+          timezone: browserTimeZone(),
         },
       });
 
@@ -504,7 +506,9 @@ function ChatPane({
 
       qc.invalidateQueries({ queryKey: ["baby_conversations"] });
       qc.invalidateQueries({ queryKey: ["baby_conversation", activeConversationId] });
-      qc.invalidateQueries({ queryKey: ["ideas"] });
+      qc.invalidateQueries({ queryKey: IDEAS_KEY });
+      qc.invalidateQueries({ queryKey: EVENTS_KEY });
+      if (res.saved_memory) qc.invalidateQueries({ queryKey: MEMORIES_KEY });
 
       if (res.saved_memory) {
         toast.success("Baby tucked it in her brain", { description: res.saved_memory });
@@ -748,14 +752,14 @@ function ChatPane({
 
 function BrainPane() {
   const qc = useQueryClient();
-  const { data: memories = [], isLoading } = useQuery({ queryKey: ["baby_memories"], queryFn: () => listMemories() });
+  const { data: memories = [], isLoading } = useQuery(memoriesQuery);
   const [draft, setDraft] = useState("");
 
   const add = useMutation({
     mutationFn: (content: string) => addMemory({ data: { content } }),
     onSuccess: () => {
       setDraft("");
-      qc.invalidateQueries({ queryKey: ["baby_memories"] });
+      qc.invalidateQueries({ queryKey: MEMORIES_KEY });
       toast.success("Added to Baby's brain");
     },
     onError: (e: Error) => toast.error(e.message || "Baby couldn't save that memory."),
@@ -763,14 +767,14 @@ function BrainPane() {
 
   const del = useMutation({
     mutationFn: (id: string) => deleteMemory({ data: { id } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["baby_memories"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: MEMORIES_KEY }),
     onError: (e: Error) => toast.error(e.message || "Baby couldn't delete that memory."),
   });
 
   const update = useMutation({
     mutationFn: (memory: { id: string; content: string }) => updateMemory({ data: memory }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["baby_memories"] });
+      qc.invalidateQueries({ queryKey: MEMORIES_KEY });
       toast.success("Baby updated her brain");
     },
     onError: (e: Error) => toast.error(e.message || "Baby couldn't update that memory."),
@@ -791,7 +795,6 @@ function BrainPane() {
         <Textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onInput={(e) => setDraft((e.target as HTMLTextAreaElement).value)}
           placeholder="Daddy's favorite vendor for foam is Smooth-On."
           rows={2}
           className="resize-none text-sm"
@@ -856,13 +859,5 @@ function MemoryRow({ memory, onDelete, onUpdate }: { memory: Memory; onDelete: (
         <Button type="button" size="icon" variant="ghost" className="size-7 text-destructive" onClick={onDelete}><Trash2 className="size-3.5" /></Button>
       </div>
     </div>
-  );
-}
-
-export function BabyChatButton({ onClick }: { onClick: () => void }) {
-  return (
-    <Button type="button" onClick={onClick} size="icon" className="bf-btn-primary fixed bottom-5 right-5 z-40 size-14" aria-label="Chat with Baby">
-      <MessageCircle className="size-6" />
-    </Button>
   );
 }

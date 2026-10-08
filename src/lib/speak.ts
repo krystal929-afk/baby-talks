@@ -1,5 +1,4 @@
-import { prepareAudioPlayback } from "./audio";
-import { playBase64Mp3 } from "./audio";
+import { playBase64Mp3, prepareAudioPlayback } from "./audio";
 import { speakBaby } from "@/server/voice.functions";
 
 export type SpeechHandle = {
@@ -105,6 +104,22 @@ function browserSpeak(text: string, handle?: SpeechHandle): Promise<boolean> {
 
 type SpeechProvider = "azure" | "elevenlabs" | "cloudflare" | "browser" | "none";
 
+// The server voice accepts at most 800 characters; longer replies used to be
+// rejected outright, so trim at a sentence boundary and skip document links.
+const MAX_SERVER_SPEECH_CHARS = 800;
+
+function speechText(text: string) {
+  const clean = text
+    .replace(/^.*:\s*\/documents\/[0-9a-fA-F-]{36}\s*$/gm, "")
+    .replace(/\/documents\/[0-9a-fA-F-]{36}/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (clean.length <= MAX_SERVER_SPEECH_CHARS) return clean;
+  const cut = clean.slice(0, MAX_SERVER_SPEECH_CHARS);
+  const lastStop = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "));
+  return (lastStop > 200 ? cut.slice(0, lastStop + 1) : cut).trim();
+}
+
 async function serverVoiceWithTimeout(text: string) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
@@ -169,6 +184,8 @@ export async function speak(
   handle?: SpeechHandle,
 ): Promise<{ provider: SpeechProvider; error?: string }> {
   prepareAudioPlayback();
+  text = speechText(text);
+  if (!text) return { provider: "none", error: "Nothing to say" };
 
   try {
     const res = await serverVoiceWithTimeout(text);

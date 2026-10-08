@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Brain, Lightbulb, Loader2, Pencil, Save, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -11,16 +11,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { BabyAppNav } from "@/components/baby-app-nav";
 import babyPhoto from "@/assets/brand/baby-firefly.jpg";
-
-const qc = new QueryClient();
+import { IDEAS_KEY, MEMORIES_KEY, ideasQuery, memoriesQuery } from "@/lib/queries";
+import { deleteMemory, updateMemory, type Memory } from "@/server/memories.functions";
 
 export const Route = createFileRoute("/brain")({
   head: () => ({ meta: [{ title: "Baby's Brain — Mr. Satan" }, { name: "description", content: "Search, edit, and prune Baby's saved ideas and memories." }] }),
-  component: () => <QueryClientProvider client={qc}><BrainPage /></QueryClientProvider>,
+  component: BrainPage,
 });
 
 type Tab = "memories" | "ideas";
-type Memory = { id: string; content: string; source: string; created_at: string };
 type IdeaRow = { id: string; transcript: string; status: "grow" | "rethink" | "trash" | "parking_lot"; topic: string; created_at: string };
 
 function BrainPage() {
@@ -68,12 +67,9 @@ function TabButton({ active, onClick, icon, children }: { active: boolean; onCli
 
 function MemoriesList({ q }: { q: string }) {
   const queryClient = useQueryClient();
-  const { data = [], isLoading } = useQuery({
-    queryKey: ["baby_memories"],
-    queryFn: async () => { const { data, error } = await supabase.from("baby_memories").select("*").order("created_at", { ascending: false }); if (error) throw error; return (data ?? []) as Memory[]; },
-  });
+  const { data = [], isLoading } = useQuery(memoriesQuery);
   const filtered = useMemo(() => { const needle = q.trim().toLowerCase(); return needle ? data.filter((m) => m.content.toLowerCase().includes(needle)) : data; }, [data, q]);
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["baby_memories"] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: MEMORIES_KEY });
 
   if (isLoading) return <Loading label="Riflin' through Baby's brain…" />;
   if (!data.length) return <Empty title="Brain's empty, daddy" body="Tell Baby a fact in chat. She'll save it here automatically." />;
@@ -91,16 +87,24 @@ function MemoryCard({ memory, onChanged }: { memory: Memory; onChanged: () => vo
     const next = text.trim();
     if (!next || next === memory.content) { setEditing(false); setText(memory.content); return; }
     setBusy(true);
-    const { error } = await supabase.from("baby_memories").update({ content: next }).eq("id", memory.id);
-    setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    setEditing(false); onChanged();
+    try {
+      await updateMemory({ data: { id: memory.id, content: next } });
+      setEditing(false); onChanged();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Baby couldn't update that memory.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function del() {
     if (!confirm("Forget this fact?")) return;
-    const { error } = await supabase.from("baby_memories").delete().eq("id", memory.id);
-    if (error) toast.error(error.message); else onChanged();
+    try {
+      await deleteMemory({ data: { id: memory.id } });
+      onChanged();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Baby couldn't forget that one.");
+    }
   }
 
   return (
@@ -123,10 +127,7 @@ function IdeasList({ q }: { q: string }) {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<IdeaRow["status"] | "all">("all");
   const [topicFilter, setTopicFilter] = useState("all");
-  const { data = [], isLoading } = useQuery({
-    queryKey: ["ideas-brain"],
-    queryFn: async () => { const { data, error } = await supabase.from("ideas").select("id, transcript, status, topic, created_at").order("created_at", { ascending: false }); if (error) throw error; return (data ?? []) as IdeaRow[]; },
-  });
+  const { data = [], isLoading } = useQuery(ideasQuery);
 
   const topics = useMemo(() => Array.from(new Set(data.map((i) => i.topic))).sort(), [data]);
   const filtered = useMemo(() => {
@@ -138,7 +139,7 @@ function IdeasList({ q }: { q: string }) {
       return true;
     });
   }, [data, q, statusFilter, topicFilter]);
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["ideas-brain"] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: IDEAS_KEY });
 
   if (isLoading) return <Loading label="Diggin' through the box…" />;
   if (!data.length) return <Empty title="No ideas saved yet" body="Hold the mic on the notebook and spill somethin'." />;

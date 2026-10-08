@@ -27,6 +27,31 @@ function fileToBase64(file: File) {
   });
 }
 
+// Some phones report an empty type for Office/Markdown files; the server only
+// accepts known types, so fill it in from the extension.
+const MIME_BY_EXTENSION: Record<string, string> = {
+  pdf: "application/pdf",
+  txt: "text/plain",
+  md: "text/markdown",
+  csv: "text/csv",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  xls: "application/vnd.ms-excel",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+  bmp: "image/bmp",
+  svg: "image/svg+xml",
+};
+
+function mimeTypeFor(file: File) {
+  if (file.type) return file.type;
+  const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+  return MIME_BY_EXTENSION[extension] || "application/octet-stream";
+}
+
 type Props = {
   conversationId: string | null;
   disabled?: boolean;
@@ -62,7 +87,7 @@ export function BabyUploadButton({
         data: {
           conversation_id: conversationId || undefined,
           filename: file.name,
-          mime_type: file.type || "application/octet-stream",
+          mime_type: mimeTypeFor(file),
           base64,
         },
       });
@@ -86,7 +111,7 @@ export function BabyUploadButton({
         ref={inputRef}
         type="file"
         className="hidden"
-        accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml,application/pdf,text/plain,text/markdown,text/csv,.docx,.xlsx,.xls"
+        accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml,application/pdf,text/plain,text/markdown,text/csv,.md,.docx,.xlsx,.xls"
         onChange={(event) => void handleFile(event.target.files?.[0])}
       />
       <Button

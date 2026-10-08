@@ -5,7 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getSupabaseAdmin } from "@/integrations/supabase/client.server";
 
 const FeedbackInput = z.object({
-  content: z.string().min(1).max(4000),
+  content: z.string().min(1).max(20_000),
   feedback: z.enum(["up", "down"]).nullable(),
 });
 

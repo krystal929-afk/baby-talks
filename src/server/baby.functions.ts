@@ -162,12 +162,24 @@ export const growIdea = createServerFn({ method: "POST" })
       }
       const json = await res.json();
       const call = json.choices?.[0]?.message?.tool_calls?.[0];
-      const args = JSON.parse(call.function.arguments);
-      return {
-        next_steps: args.next_steps ?? [],
-        key_questions: args.key_questions ?? [],
-        risks: args.risks ?? [],
+      if (!call?.function?.arguments) throw new Error("Baby came back empty-handed. Try Grow again.");
+      let args: Partial<DevPack>;
+      try {
+        args = JSON.parse(call.function.arguments);
+      } catch {
+        throw new Error("Baby scribbled nonsense. Try Grow again.");
+      }
+      const list = (value: unknown) =>
+        Array.isArray(value) ? value.map((item) => String(item).trim()).filter(Boolean).slice(0, 6) : [];
+      const pack = {
+        next_steps: list(args.next_steps),
+        key_questions: list(args.key_questions),
+        risks: list(args.risks),
       };
+      if (!pack.next_steps.length && !pack.key_questions.length && !pack.risks.length) {
+        throw new Error("Baby came back empty-handed. Try Grow again.");
+      }
+      return pack;
     } catch (e) {
       console.error("growIdea failed:", e);
       throw e instanceof Error ? e : new Error("Failed to grow idea");

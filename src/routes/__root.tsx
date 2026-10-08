@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { ReminderWatcher } from "@/components/reminder-watcher";
 import { AuthGate } from "@/components/auth-gate";
@@ -57,5 +59,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  return <AuthGate><Outlet /><ReminderWatcher /><Toaster theme="dark" position="top-center" /></AuthGate>;
+  // One cache for the whole app so pages see each other's changes.
+  const [queryClient] = useState(() => new QueryClient());
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthGate><Outlet /><ReminderWatcher /><Toaster theme="dark" position="top-center" /></AuthGate>
+    </QueryClientProvider>
+  );
 }

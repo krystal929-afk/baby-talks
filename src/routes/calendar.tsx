@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ArrowLeft, CalendarPlus, Loader2, MapPin, Bell, Trash2, Clock, Zap } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, CalendarPlus, Loader2, MapPin, Bell, Trash2, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -12,8 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar as MonthCalendar } from "@/components/ui/calendar";
 import { PushToggle } from "@/components/push-toggle";
 import { BabyAppNav } from "@/components/baby-app-nav";
-
-const qc = new QueryClient();
+import { EVENTS_KEY, eventsQuery, type CalendarEvent } from "@/lib/queries";
 
 export const Route = createFileRoute("/calendar")({
   head: () => ({
@@ -22,19 +21,10 @@ export const Route = createFileRoute("/calendar")({
       { name: "description", content: "Daddy's gigs, appointments, and reminders Baby tucked away." },
     ],
   }),
-  component: () => <QueryClientProvider client={qc}><CalendarPage /></QueryClientProvider>,
+  component: CalendarPage,
 });
 
-type Event = {
-  id: string;
-  title: string;
-  notes: string | null;
-  starts_at: string;
-  ends_at: string | null;
-  all_day: boolean;
-  location: string | null;
-  remind_at: string | null;
-};
+type Event = CalendarEvent;
 
 async function getCurrentUserId() {
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -52,14 +42,7 @@ function CalendarPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
-  const { data: events = [], isLoading } = useQuery({
-    queryKey: ["events"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("calendar_events").select("*").order("starts_at", { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as Event[];
-    },
-  });
+  const { data: events = [], isLoading } = useQuery(eventsQuery);
 
   const { upcoming, past } = useMemo(() => {
     const now = Date.now();
@@ -72,28 +55,7 @@ function CalendarPage() {
     return { upcoming: up, past: pa.reverse() };
   }, [events]);
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["events"] });
-
-  async function createTestPing() {
-    try {
-      const ownerId = await getCurrentUserId();
-      const now = new Date();
-      const remindAt = new Date(now.getTime() + 90_000);
-      const startsAt = new Date(now.getTime() + 5 * 60_000);
-      const { error } = await supabase.from("calendar_events").insert({
-        owner_id: ownerId,
-        title: "Baby's test ping",
-        starts_at: startsAt.toISOString(),
-        remind_at: remindAt.toISOString(),
-        notes: "Just makin' sure I can buzz ya, daddy.",
-      });
-      if (error) throw error;
-      toast.success("Test ping armed — Baby'll buzz in ~90 seconds.");
-      refresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Test ping failed.");
-    }
-  }
+  const refresh = () => queryClient.invalidateQueries({ queryKey: EVENTS_KEY });
 
   return (
     <div className="bf-screen bf-calendar">
@@ -110,7 +72,6 @@ function CalendarPage() {
 
         <div className="bf-command-row">
           <div className="bf-btn bf-btn-dark flex items-center justify-center"><PushToggle /></div>
-          <Button onClick={createTestPing} size="sm" variant="outline" className="bf-btn bf-btn-dark gap-1"><Zap className="h-3.5 w-3.5" />Test ping</Button>
           <Button onClick={() => setShowAdd(true)} size="sm" className="bf-btn bf-btn-primary gap-1"><CalendarPlus className="h-3.5 w-3.5" />Add event</Button>
         </div>
 
